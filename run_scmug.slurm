@@ -4,7 +4,7 @@
 #SBATCH --output=result_%j.out
 #SBATCH --error=error_%j.er
 #SBATCH --time=00:45:00
-#SBATCH --ntask=1
+#SBATCH --ntasks=1
 #SBATCH --cpus-per-task=14
 #SBATCH --mem=64G
 #SBATCH --mail-type=ALL
