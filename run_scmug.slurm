@@ -6,7 +6,7 @@
 #SBATCH --time=00:45:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=14
-#SBATCH --gres=gpu:A100-HGX-80G:1
+#SBATCH --gpus=1
 #SBATCH --mem=64G
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=julien.sottiaux@univ-lille.fr
