@@ -35,9 +35,12 @@ echo "CUDA check:"
 nvidia-smi || true
 
 echo "Installing requirements"
-python3 -m pip install git+https://github.com/ChangSuBiostats/CS-CORE_python.git
-python3 -m pip install --upgrade pip setuptools wheel
-python3 -m pip install -r requirements.txt --user
+
+python3 -m pip install --user --upgrade pip setuptools wheel
+
+# Core scMUG environment
+python3 -m pip install --user -r requirements.txt
+python3 -m pip check
 
 echo "Compiling gcorr"
 cd /home/julien.sottiaux/scMUG/gcorr
