@@ -1,5 +1,6 @@
 import argparse
-
+import os
+import numpy as np
 from model import *
 from utils import *
 from torch import optim
@@ -44,6 +45,7 @@ def run():
 
     predictions = []
     latents = []
+    os.makedirs("./outputs", exist_ok=True)
     f = open(f"./outputs/{dbname}s.txt", "w", encoding="utf-8")
 
     for seed in seeds:
@@ -77,16 +79,28 @@ def run():
         # local feature
         dist = np.zeros(shape=(n_gfm, n_sample, n_sample))
         for c in range(n_gfm):
-            latent_val_c = reducer(red_local)(latent_val[:, c, :])
+            X = latent_val[:, c, :]
+            
+            if not np.isfinite(X).all():
+                print(f"[WARNING] NaN/Inf detected before local reducer, GFM={c + 1}")
+                print("NaN count:", np.isnan(X).sum())
+                print("Inf count:", np.isinf(X).sum())
+                X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
+
+            latent_val_c = reducer(red_local)(X)
+            
             for i in range(n_sample):
                 for j in range(i + 1, n_sample):
                     dist[c, i, j] = dist[c, j, i] = np.linalg.norm(latent_val_c[i] - latent_val_c[j])
+        
         neighbourDist = np.array([np.array(
             [np.sum(dis[i, np.argpartition(dis[i], n_neighbour + 1)[1:n_neighbour + 1]]) / n_neighbour for i in
              range(n_sample)]) for dis in dist])
+        
         neighbourDistScore = np.array([np.array(
             [1 / np.log(np.var(dis[i, np.argpartition(dis[i], n_neighbour + 1)[1:n_neighbour + 1]]) + np.exp(1)) for i
              in range(n_sample)]) for dis in dist]) ** 0.5
+        
         mat2 = get_mat2(n_sample, neighbourDist, dist, neighbourDistScore)
 
         for r in range(repeat):
@@ -97,13 +111,18 @@ def run():
             for c in range(n_gfm):
                 z = latent_val[:, c, :]
                 z = z.reshape(z.shape[0], -1)
+                if not np.isfinite(z).all():
+                    print(f"[WARNING] NaN/Inf detected before global reducer, GFM={c + 1}")
+                    print("NaN count:", np.isnan(z).sum())
+                    print("Inf count:", np.isinf(z).sum())
+                z = np.nan_to_num(z, nan=0.0, posinf=0.0, neginf=0.0)
                 z = reducer(red_global)(z)
-                for t in range(kmeans_times):
-                    pred_z, score_z = c_kmeans(z, cluster_number, n_init=10, random_state=None)
-                    pred[t, c, :] = pred_z
-                    score_z = np.sort(score_z, axis=1)
-                    score[t, c, :] = ((score_z[:, 1] - score_z[:, 0]) / (
-                                score_z[:, 1] + score_z[:, 0])) ** 0.5 / kmeans_times / n_gfm
+            
+            for t in range(kmeans_times):
+                pred_z, score_z = c_kmeans(z, cluster_number, n_init=10, random_state=None)
+                pred[t, c, :] = pred_z
+                score_z = np.sort(score_z, axis=1)
+                score[t, c, :] = ((score_z[:, 1] - score_z[:, 0]) / (score_z[:, 1] + score_z[:, 0])) ** 0.5 / kmeans_times / n_gfm
             mat1 = get_mat1(pred, n_sample, kmeans_times, n_gfm, cluster_number, score, 8)
             mat1 = mat1 / np.mean(mat1)
 

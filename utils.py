@@ -322,6 +322,7 @@ def get_core_sub_graph_genes(adata, t=0.2):
     expr_matrix = adata.X
     n_genes = expr_matrix.shape[1]
     corr = pearson(expr_matrix).to_numpy()
+    corr = np.nan_to_num(corr, nan=0.0, posinf=0.0, neginf=0.0)
     corr = np.clip(corr, -1 + esp, 1 - esp)
     corr = 0.5 * np.log((1 + corr) / (1 - corr))
     pairs = np.where(abs(corr) >= t)
@@ -343,6 +344,7 @@ def extend_gfm(adata, genes, t=0.2, d=3):
     esp = 1e-6
     expr_matrix = adata.X
     corr = pearson(expr_matrix).to_numpy()
+    corr = np.nan_to_num(corr, nan=0.0, posinf=0.0, neginf=0.0)
     corr = np.clip(corr, -1 + esp, 1 - esp)
     corr = 0.5 * np.log((1 + corr) / (1 - corr))
     old_gene_count = len(genes)

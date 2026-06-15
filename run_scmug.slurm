@@ -2,7 +2,7 @@
 #SBATCH --job-name=scmug_test
 #SBATCH --output=result_%j.out
 #SBATCH --error=error_%j.err
-#SBATCH --time=2:00:00
+#SBATCH --time=02:00:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G
@@ -13,44 +13,85 @@
 
 set -euo pipefail
 
-echo "Job ID: $SLURM_JOB_ID"
-echo "Node: $(hostname)"
-echo "Working directory at start: $(pwd)"
-echo "CUDA_VISIBLE_DEVICES: ${CUDA_VISIBLE_DEVICES:-not_set}"
+echo "=== Job started on $(hostname) at $(date) ==="
 
 module purge
 module load pytorch/2.0.1/gpu
 
-cd /home/julien.sottiaux/scMUG
+PROJECT_DIR="/home/julien.sottiaux/scMUG"
+GCORR_DIR="${PROJECT_DIR}/gcorr"
 
-echo "Python:"
+cd "${PROJECT_DIR}"
+
+echo "=== Python environment ==="
 which python3
 python3 --version
+python3 -m pip --version
 
-echo "Pip:"
-which pip
-pip --version
-
-echo "CUDA check:"
+echo "=== CUDA check ==="
 nvidia-smi || true
+which nvcc || true
+nvcc --version || true
 
-echo "Installing requirements"
+echo "=== Prepare folders ==="
+mkdir -p "${PROJECT_DIR}/outputs"
 
+echo "=== Install/fix Python dependencies ==="
 python3 -m pip install --user --upgrade pip setuptools wheel
 
-# Core scMUG environment
+python3 -m pip install --user --force-reinstall \
+  "numpy==1.26.4" \
+  "scipy==1.11.4" \
+  "zarr<3"
+
 python3 -m pip install --user -r requirements.txt
-python3 -m pip check
 
-echo "Compiling gcorr"
-cd /home/julien.sottiaux/scMUG/gcorr
-nvcc -o gcorr gcorr.cu --shared
+echo "=== Dependency check ==="
+python3 -m pip check || true
 
-export LD_LIBRARY_PATH=/home/julien.sottiaux/scMUG/gcorr:$LD_LIBRARY_PATH
-export PYTHONPATH=/home/julien.sottiaux/scMUG/gcorr:$PYTHONPATH
+echo "=== Version check ==="
+python3 - <<'PY'
+import sys
+print("python", sys.executable)
 
-echo "Running scMUG"
-cd /home/julien.sottiaux/scMUG
+for pkg in ["numpy", "scipy", "zarr", "anndata", "torch"]:
+    try:
+        mod = __import__(pkg)
+        print(pkg, getattr(mod, "__version__", "unknown"))
+    except Exception as e:
+        print(pkg, "IMPORT_FAILED:", repr(e))
+PY
+
+echo "=== Compile gcorr ==="
+cd "${GCORR_DIR}"
+
+rm -f gcorr libgcorr.so gcorr.so
+
+nvcc -shared -Xcompiler -fPIC -o libgcorr.so gcorr.cu
+
+# scMUG currently calls cdll.LoadLibrary("gcorr"),
+# so provide a filename matching that exact lookup.
+ln -sf libgcorr.so gcorr
+
+echo "=== gcorr files ==="
+ls -lh "${GCORR_DIR}"
+
+echo "=== gcorr dynamic library check ==="
+ldd "${GCORR_DIR}/libgcorr.so" || true
+
+export LD_LIBRARY_PATH="${GCORR_DIR}:${LD_LIBRARY_PATH:-}"
+export PYTHONPATH="${PROJECT_DIR}:${PYTHONPATH:-}"
+
+echo "=== Test gcorr loading ==="
+cd "${PROJECT_DIR}"
+python3 - <<'PY'
+from ctypes import cdll
+cdll.LoadLibrary("gcorr")
+print("gcorr loaded successfully")
+PY
+
+echo "=== Run scMUG ==="
+cd "${PROJECT_DIR}"
 
 python3 scMUG.py \
   --dataset muraro \
@@ -58,3 +99,5 @@ python3 scMUG.py \
   --n_gfm 5 \
   --cutoffs 0.14,0.14,0.15,0.14,0.14 \
   --seeds 1111,2222,3333,4444,5555,6666,7777,8888,9999,10000
+
+echo "=== Job finished at $(date) ==="

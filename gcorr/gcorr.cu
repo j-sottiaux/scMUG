@@ -16,8 +16,14 @@ using namespace std;
 #define get_bid() (blockIdx.x)
 #define get_tid() (threadIdx.x)
 
-extern "C" __declspec(dllexport) int get_m(int&);
-extern "C" __declspec(dllexport) int pearson(int, int, float*, float*, float*, float*, float*, float*, float*);
+#ifdef _WIN32
+#define EXPORT __declspec(dllexport)
+#else
+#define EXPORT
+#endif
+
+extern "C" EXPORT int get_m(int&);
+extern "C" EXPORT int pearson(int, int, float*, float*, float*, float*, float*, float*, float*);
 
 
 int m, n;                  // m: gene number (m<56640)   n: cell number
