@@ -66,8 +66,26 @@ def affinity_from_K(K: np.ndarray, nonneg: str = "clip") -> np.ndarray:
 def spectral_embedding_from_K(
     K: np.ndarray, d: int = 32, seed: int = 0, nonneg: str = "clip"
 ) -> np.ndarray:
-    """Return a (n_cells, d) spectral embedding of the kernel representation K."""
+    """Return a (n_cells, d) spectral embedding of the kernel representation K.
+
+    Fails fast on malformed input rather than letting a corrupt embedding
+    silently pollute scMUG's block C.
+    """
+    # (1) input validation
+    if K.ndim != 2 or K.shape[0] != K.shape[1]:
+        raise ValueError(f"K must be square, got shape {K.shape}")
+    if K.shape[0] <= 2:
+        raise ValueError("Need at least 3 cells for spectral embedding.")
+
     A = affinity_from_K(K, nonneg=nonneg)
+
+    # (2) a diverged dmkcn run can leave NaN/Inf in K -> catch it loudly here
+    if not np.isfinite(A).all():
+        raise ValueError("Affinity matrix contains NaN or Inf.")
+    # (3) degenerate all-zero affinity (e.g. nonneg='clip' with K <= 0 everywhere)
+    if np.all(A == 0):
+        raise ValueError("Affinity matrix is all zeros after transformation.")
+
     d_eff = int(min(d, A.shape[0] - 1))
     emb = SpectralEmbedding(
         n_components=d_eff, affinity="precomputed", random_state=seed,
