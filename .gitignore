@@ -10,6 +10,10 @@ __pycache__/
 # C extensions
 *.so
 
+# other extensions
+*.err
+*.out
+
 # Distribution / packaging
 .Python
 build/
@@ -172,3 +176,7 @@ poetry.toml
 
 # LSP config files
 pyrightconfig.json
+
+#other folders
+outputs/
+
