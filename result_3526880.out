@@ -1,972 +1,0 @@
-=== Job started on ares-c02-04 at Sun Jun 14 10:28:38 AM CEST 2026 ===
-Note: 'pytorch/2.0.1/gpu' is deprecated and will be removed soon. Please use the pytorch/2.10/gpu module instead.
-
-Loading pytorch/2.0.1/gpu
-  Loading requirement: conda/23.11-py311 nvidia/cuda/12.0/compilers
-=== Python environment ===
-/share/tools/miniconda3/23.11/envs/pytorch-2.0.1-gpu/bin/python3
-Python 3.11.9
-pip 26.1.2 from /home/julien.sottiaux/.local/lib/python3.11/site-packages/pip (python 3.11)
-=== CUDA check ===
-Sun Jun 14 10:28:38 2026       
-+-----------------------------------------------------------------------------------------+
-| NVIDIA-SMI 580.126.09             Driver Version: 580.126.09     CUDA Version: 13.0     |
-+-----------------------------------------+------------------------+----------------------+
-| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
-| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
-|                                         |                        |               MIG M. |
-|=========================================+========================+======================|
-|   0  NVIDIA L40S                    Off |   00000000:E1:00.0 Off |                    0 |
-| N/A   59C    P0             96W /  350W |       0MiB /  46068MiB |      0%      Default |
-|                                         |                        |                  N/A |
-+-----------------------------------------+------------------------+----------------------+
-
-+-----------------------------------------------------------------------------------------+
-| Processes:                                                                              |
-|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
-|        ID   ID                                                               Usage      |
-|=========================================================================================|
-|  No running processes found                                                             |
-+-----------------------------------------------------------------------------------------+
-/share/compilers/nvidia/cuda/12.0/bin/nvcc
-nvcc: NVIDIA (R) Cuda compiler driver
-Copyright (c) 2005-2022 NVIDIA Corporation
-Built on Mon_Oct_24_19:12:58_PDT_2022
-Cuda compilation tools, release 12.0, V12.0.76
-Build cuda_12.0.r12.0/compiler.31968024_0
-=== Prepare folders ===
-=== Install/fix Python dependencies ===
-Requirement already satisfied: pip in /home/julien.sottiaux/.local/lib/python3.11/site-packages (26.1.2)
-Requirement already satisfied: setuptools in /home/julien.sottiaux/.local/lib/python3.11/site-packages (82.0.1)
-Requirement already satisfied: wheel in /home/julien.sottiaux/.local/lib/python3.11/site-packages (0.47.0)
-Requirement already satisfied: packaging>=24.0 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from wheel) (26.2)
-Collecting numpy==1.26.4
-  Using cached numpy-1.26.4-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (61 kB)
-Collecting scipy==1.11.4
-  Using cached scipy-1.11.4-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (60 kB)
-Collecting zarr<3
-  Using cached zarr-2.18.7-py3-none-any.whl.metadata (5.8 kB)
-Collecting asciitree (from zarr<3)
-  Using cached asciitree-0.3.3-py3-none-any.whl
-Collecting fasteners (from zarr<3)
-  Using cached fasteners-0.20-py3-none-any.whl.metadata (4.8 kB)
-Collecting numcodecs!=0.14.0,!=0.14.1,<0.16,>=0.10.0 (from zarr<3)
-  Using cached numcodecs-0.15.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (2.9 kB)
-Collecting deprecated (from numcodecs!=0.14.0,!=0.14.1,<0.16,>=0.10.0->zarr<3)
-  Using cached deprecated-1.3.1-py2.py3-none-any.whl.metadata (5.9 kB)
-Collecting wrapt<3,>=1.10 (from deprecated->numcodecs!=0.14.0,!=0.14.1,<0.16,>=0.10.0->zarr<3)
-  Using cached wrapt-2.2.1-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (7.4 kB)
-Using cached numpy-1.26.4-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (18.3 MB)
-Using cached scipy-1.11.4-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (36.4 MB)
-Using cached zarr-2.18.7-py3-none-any.whl (211 kB)
-Using cached numcodecs-0.15.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (8.9 MB)
-Using cached deprecated-1.3.1-py2.py3-none-any.whl (11 kB)
-Using cached wrapt-2.2.1-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (159 kB)
-Using cached fasteners-0.20-py3-none-any.whl (18 kB)
-Installing collected packages: asciitree, wrapt, numpy, fasteners, scipy, deprecated, numcodecs, zarr
-  Attempting uninstall: asciitree
-    Found existing installation: asciitree 0.3.3
-    Uninstalling asciitree-0.3.3:
-      Successfully uninstalled asciitree-0.3.3
-  Attempting uninstall: wrapt
-    Found existing installation: wrapt 2.2.1
-    Uninstalling wrapt-2.2.1:
-      Successfully uninstalled wrapt-2.2.1
-  Attempting uninstall: numpy
-    Found existing installation: numpy 1.26.4
-    Uninstalling numpy-1.26.4:
-      Successfully uninstalled numpy-1.26.4
-  Attempting uninstall: fasteners
-    Found existing installation: fasteners 0.20
-    Uninstalling fasteners-0.20:
-      Successfully uninstalled fasteners-0.20
-  Attempting uninstall: scipy
-    Found existing installation: scipy 1.11.4
-    Uninstalling scipy-1.11.4:
-      Successfully uninstalled scipy-1.11.4
-  Attempting uninstall: deprecated
-    Found existing installation: Deprecated 1.3.1
-    Uninstalling Deprecated-1.3.1:
-      Successfully uninstalled Deprecated-1.3.1
-  Attempting uninstall: numcodecs
-    Found existing installation: numcodecs 0.15.1
-    Uninstalling numcodecs-0.15.1:
-      Successfully uninstalled numcodecs-0.15.1
-  Attempting uninstall: zarr
-    Found existing installation: zarr 2.18.7
-    Uninstalling zarr-2.18.7:
-      Successfully uninstalled zarr-2.18.7
-
-Successfully installed asciitree-0.3.3 deprecated-1.3.1 fasteners-0.20 numcodecs-0.15.1 numpy-1.26.4 scipy-1.11.4 wrapt-2.2.1 zarr-2.18.7
-Requirement already satisfied: h5py==3.11.0 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from -r requirements.txt (line 1)) (3.11.0)
-Requirement already satisfied: joblib==1.4.2 in /share/tools/miniconda3/23.11/envs/pytorch-2.0.1-gpu/lib/python3.11/site-packages (from -r requirements.txt (line 2)) (1.4.2)
-Requirement already satisfied: louvain==0.8.2 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from -r requirements.txt (line 3)) (0.8.2)
-Requirement already satisfied: locCSN==0.0.12 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from -r requirements.txt (line 4)) (0.0.12)
-Requirement already satisfied: omicverse==1.6.10 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from -r requirements.txt (line 5)) (1.6.10)
-Requirement already satisfied: numpy>=1.17.3 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from h5py==3.11.0->-r requirements.txt (line 1)) (1.26.4)
-Requirement already satisfied: igraph<0.12,>=0.10.0 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from louvain==0.8.2->-r requirements.txt (line 3)) (0.11.9)
-Requirement already satisfied: pandas in /share/tools/miniconda3/23.11/envs/pytorch-2.0.1-gpu/lib/python3.11/site-packages (from locCSN==0.0.12->-r requirements.txt (line 4)) (2.2.3)
-Requirement already satisfied: scipy in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from locCSN==0.0.12->-r requirements.txt (line 4)) (1.11.4)
-Requirement already satisfied: matplotlib in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from locCSN==0.0.12->-r requirements.txt (line 4)) (3.6.3)
-Requirement already satisfied: scanpy in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from locCSN==0.0.12->-r requirements.txt (line 4)) (1.11.0)
-Requirement already satisfied: scikit-learn>=1.2 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from omicverse==1.6.10->-r requirements.txt (line 5)) (1.5.2)
-Requirement already satisfied: networkx>=2.8 in /share/tools/miniconda3/23.11/envs/pytorch-2.0.1-gpu/lib/python3.11/site-packages (from omicverse==1.6.10->-r requirements.txt (line 5)) (3.1)
-Requirement already satisfied: multiprocess>=0.70 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from omicverse==1.6.10->-r requirements.txt (line 5)) (0.70.19)
-Requirement already satisfied: seaborn>=0.11 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from omicverse==1.6.10->-r requirements.txt (line 5)) (0.13.2)
-Requirement already satisfied: datetime>=4.5 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from omicverse==1.6.10->-r requirements.txt (line 5)) (6.0)
-Requirement already satisfied: statsmodels>=0.13 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from omicverse==1.6.10->-r requirements.txt (line 5)) (0.14.6)
-Requirement already satisfied: ipywidgets>=8.0 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from omicverse==1.6.10->-r requirements.txt (line 5)) (8.1.8)
-Requirement already satisfied: lifelines>=0.27 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from omicverse==1.6.10->-r requirements.txt (line 5)) (0.30.3)
-Requirement already satisfied: ktplotspy>=0.1 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from omicverse==1.6.10->-r requirements.txt (line 5)) (0.3.5)
-Requirement already satisfied: python-dotplot>=0.0.1 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from omicverse==1.6.10->-r requirements.txt (line 5)) (0.0.1)
-Requirement already satisfied: boltons>=23.0 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from omicverse==1.6.10->-r requirements.txt (line 5)) (25.0.0)
-Requirement already satisfied: ctxcore>=0.2 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from omicverse==1.6.10->-r requirements.txt (line 5)) (0.2.0)
-Requirement already satisfied: termcolor>=2.1 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from omicverse==1.6.10->-r requirements.txt (line 5)) (3.3.0)
-Requirement already satisfied: pygam==0.8.0 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from omicverse==1.6.10->-r requirements.txt (line 5)) (0.8.0)
-Requirement already satisfied: pillow>=9.0 in /share/tools/miniconda3/23.11/envs/pytorch-2.0.1-gpu/lib/python3.11/site-packages (from omicverse==1.6.10->-r requirements.txt (line 5)) (10.3.0)
-Requirement already satisfied: gdown>=4.6 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from omicverse==1.6.10->-r requirements.txt (line 5)) (6.1.0)
-Requirement already satisfied: leidenalg>=0.9 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from omicverse==1.6.10->-r requirements.txt (line 5)) (0.10.2)
-Requirement already satisfied: graphtools>=1.5 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from omicverse==1.6.10->-r requirements.txt (line 5)) (2.1.0)
-Requirement already satisfied: tqdm>=4.64 in /share/tools/miniconda3/23.11/envs/pytorch-2.0.1-gpu/lib/python3.11/site-packages (from omicverse==1.6.10->-r requirements.txt (line 5)) (4.67.1)
-Requirement already satisfied: pydeseq2>=0.4.1 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from omicverse==1.6.10->-r requirements.txt (line 5)) (0.5.2)
-Requirement already satisfied: mofax>=0.3 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from omicverse==1.6.10->-r requirements.txt (line 5)) (0.3.7)
-Requirement already satisfied: adjustText>=0.8 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from omicverse==1.6.10->-r requirements.txt (line 5)) (1.4.0)
-Requirement already satisfied: scikit-misc>=0.1 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from omicverse==1.6.10->-r requirements.txt (line 5)) (0.5.2)
-Requirement already satisfied: metatime>=1.3.0 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from omicverse==1.6.10->-r requirements.txt (line 5)) (1.3.0)
-Requirement already satisfied: einops>=0.6 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from omicverse==1.6.10->-r requirements.txt (line 5)) (0.8.2)
-Requirement already satisfied: tensorboard>=2.6 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from omicverse==1.6.10->-r requirements.txt (line 5)) (2.20.0)
-Requirement already satisfied: pynvml in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from omicverse==1.6.10->-r requirements.txt (line 5)) (13.0.1)
-Requirement already satisfied: plotly in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from omicverse==1.6.10->-r requirements.txt (line 5)) (6.8.0)
-Requirement already satisfied: numba>=0.56 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from omicverse==1.6.10->-r requirements.txt (line 5)) (0.65.1)
-Requirement already satisfied: transformers>=0.30 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from omicverse==1.6.10->-r requirements.txt (line 5)) (5.11.0)
-Requirement already satisfied: future in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from pygam==0.8.0->omicverse==1.6.10->-r requirements.txt (line 5)) (1.0.0)
-Requirement already satisfied: progressbar2 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from pygam==0.8.0->omicverse==1.6.10->-r requirements.txt (line 5)) (4.5.0)
-Requirement already satisfied: texttable>=1.6.2 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from igraph<0.12,>=0.10.0->louvain==0.8.2->-r requirements.txt (line 3)) (1.7.0)
-Requirement already satisfied: contourpy>=1.0.1 in /share/tools/miniconda3/23.11/envs/pytorch-2.0.1-gpu/lib/python3.11/site-packages (from matplotlib->locCSN==0.0.12->-r requirements.txt (line 4)) (1.2.0)
-Requirement already satisfied: cycler>=0.10 in /share/tools/miniconda3/23.11/envs/pytorch-2.0.1-gpu/lib/python3.11/site-packages (from matplotlib->locCSN==0.0.12->-r requirements.txt (line 4)) (0.11.0)
-Requirement already satisfied: fonttools>=4.22.0 in /share/tools/miniconda3/23.11/envs/pytorch-2.0.1-gpu/lib/python3.11/site-packages (from matplotlib->locCSN==0.0.12->-r requirements.txt (line 4)) (4.51.0)
-Requirement already satisfied: kiwisolver>=1.0.1 in /share/tools/miniconda3/23.11/envs/pytorch-2.0.1-gpu/lib/python3.11/site-packages (from matplotlib->locCSN==0.0.12->-r requirements.txt (line 4)) (1.4.4)
-Requirement already satisfied: packaging>=20.0 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from matplotlib->locCSN==0.0.12->-r requirements.txt (line 4)) (26.2)
-Requirement already satisfied: pyparsing>=2.2.1 in /share/tools/miniconda3/23.11/envs/pytorch-2.0.1-gpu/lib/python3.11/site-packages (from matplotlib->locCSN==0.0.12->-r requirements.txt (line 4)) (3.0.9)
-Requirement already satisfied: python-dateutil>=2.7 in /share/tools/miniconda3/23.11/envs/pytorch-2.0.1-gpu/lib/python3.11/site-packages (from matplotlib->locCSN==0.0.12->-r requirements.txt (line 4)) (2.8.2)
-Requirement already satisfied: cytoolz in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from ctxcore>=0.2->omicverse==1.6.10->-r requirements.txt (line 5)) (1.1.0)
-Requirement already satisfied: frozendict in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from ctxcore>=0.2->omicverse==1.6.10->-r requirements.txt (line 5)) (2.4.7)
-Requirement already satisfied: pyarrow>=8.0.0 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from ctxcore>=0.2->omicverse==1.6.10->-r requirements.txt (line 5)) (24.0.0)
-Requirement already satisfied: pyyaml in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from ctxcore>=0.2->omicverse==1.6.10->-r requirements.txt (line 5)) (6.0.3)
-Requirement already satisfied: zope.interface in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from datetime>=4.5->omicverse==1.6.10->-r requirements.txt (line 5)) (8.5)
-Requirement already satisfied: pytz in /share/tools/miniconda3/23.11/envs/pytorch-2.0.1-gpu/lib/python3.11/site-packages (from datetime>=4.5->omicverse==1.6.10->-r requirements.txt (line 5)) (2024.1)
-Requirement already satisfied: beautifulsoup4 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from gdown>=4.6->omicverse==1.6.10->-r requirements.txt (line 5)) (4.15.0)
-Requirement already satisfied: filelock in /share/tools/miniconda3/23.11/envs/pytorch-2.0.1-gpu/lib/python3.11/site-packages (from gdown>=4.6->omicverse==1.6.10->-r requirements.txt (line 5)) (3.13.1)
-Requirement already satisfied: requests[socks] in /share/tools/miniconda3/23.11/envs/pytorch-2.0.1-gpu/lib/python3.11/site-packages (from gdown>=4.6->omicverse==1.6.10->-r requirements.txt (line 5)) (2.31.0)
-Requirement already satisfied: typing-extensions>=4.0 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from gdown>=4.6->omicverse==1.6.10->-r requirements.txt (line 5)) (4.15.0)
-Requirement already satisfied: pygsp>=0.5.1 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from graphtools>=1.5->omicverse==1.6.10->-r requirements.txt (line 5)) (0.6.1)
-Requirement already satisfied: tasklogger>=1.0 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from graphtools>=1.5->omicverse==1.6.10->-r requirements.txt (line 5)) (1.2.0)
-Requirement already satisfied: Deprecated in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from graphtools>=1.5->omicverse==1.6.10->-r requirements.txt (line 5)) (1.3.1)
-Requirement already satisfied: comm>=0.1.3 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from ipywidgets>=8.0->omicverse==1.6.10->-r requirements.txt (line 5)) (0.2.3)
-Requirement already satisfied: ipython>=6.1.0 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from ipywidgets>=8.0->omicverse==1.6.10->-r requirements.txt (line 5)) (9.14.1)
-Requirement already satisfied: traitlets>=4.3.1 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from ipywidgets>=8.0->omicverse==1.6.10->-r requirements.txt (line 5)) (5.15.1)
-Requirement already satisfied: widgetsnbextension~=4.0.14 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from ipywidgets>=8.0->omicverse==1.6.10->-r requirements.txt (line 5)) (4.0.15)
-Requirement already satisfied: jupyterlab_widgets~=3.0.15 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from ipywidgets>=8.0->omicverse==1.6.10->-r requirements.txt (line 5)) (3.0.16)
-Requirement already satisfied: decorator>=5.1.0 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from ipython>=6.1.0->ipywidgets>=8.0->omicverse==1.6.10->-r requirements.txt (line 5)) (5.3.1)
-Requirement already satisfied: ipython-pygments-lexers>=1.0.0 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from ipython>=6.1.0->ipywidgets>=8.0->omicverse==1.6.10->-r requirements.txt (line 5)) (1.1.1)
-Requirement already satisfied: jedi>=0.18.2 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from ipython>=6.1.0->ipywidgets>=8.0->omicverse==1.6.10->-r requirements.txt (line 5)) (0.20.0)
-Requirement already satisfied: matplotlib-inline>=0.1.6 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from ipython>=6.1.0->ipywidgets>=8.0->omicverse==1.6.10->-r requirements.txt (line 5)) (0.2.2)
-Requirement already satisfied: pexpect>4.6 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from ipython>=6.1.0->ipywidgets>=8.0->omicverse==1.6.10->-r requirements.txt (line 5)) (4.9.0)
-Requirement already satisfied: prompt_toolkit<3.1.0,>=3.0.41 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from ipython>=6.1.0->ipywidgets>=8.0->omicverse==1.6.10->-r requirements.txt (line 5)) (3.0.52)
-Requirement already satisfied: psutil>=7 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from ipython>=6.1.0->ipywidgets>=8.0->omicverse==1.6.10->-r requirements.txt (line 5)) (7.2.2)
-Requirement already satisfied: pygments>=2.14.0 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from ipython>=6.1.0->ipywidgets>=8.0->omicverse==1.6.10->-r requirements.txt (line 5)) (2.20.0)
-Requirement already satisfied: stack_data>=0.6.0 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from ipython>=6.1.0->ipywidgets>=8.0->omicverse==1.6.10->-r requirements.txt (line 5)) (0.6.3)
-Requirement already satisfied: wcwidth in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from prompt_toolkit<3.1.0,>=3.0.41->ipython>=6.1.0->ipywidgets>=8.0->omicverse==1.6.10->-r requirements.txt (line 5)) (0.8.1)
-Requirement already satisfied: parso<0.9.0,>=0.8.6 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from jedi>=0.18.2->ipython>=6.1.0->ipywidgets>=8.0->omicverse==1.6.10->-r requirements.txt (line 5)) (0.8.7)
-Requirement already satisfied: plotnine>=0.13.0 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from ktplotspy>=0.1->omicverse==1.6.10->-r requirements.txt (line 5)) (0.13.4)
-Requirement already satisfied: pycirclize>=1.7.2 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from ktplotspy>=0.1->omicverse==1.6.10->-r requirements.txt (line 5)) (1.10.1)
-Requirement already satisfied: autograd>=1.5 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from lifelines>=0.27->omicverse==1.6.10->-r requirements.txt (line 5)) (1.8.0)
-Requirement already satisfied: autograd-gamma>=0.3 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from lifelines>=0.27->omicverse==1.6.10->-r requirements.txt (line 5)) (0.5.0)
-Requirement already satisfied: formulaic>=0.2.2 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from lifelines>=0.27->omicverse==1.6.10->-r requirements.txt (line 5)) (1.2.2)
-Requirement already satisfied: tzdata>=2022.7 in /share/tools/miniconda3/23.11/envs/pytorch-2.0.1-gpu/lib/python3.11/site-packages (from pandas->locCSN==0.0.12->-r requirements.txt (line 4)) (2024.2)
-Requirement already satisfied: interface-meta>=1.2.0 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from formulaic>=0.2.2->lifelines>=0.27->omicverse==1.6.10->-r requirements.txt (line 5)) (2.0.1)
-Requirement already satisfied: narwhals>=1.17 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from formulaic>=0.2.2->lifelines>=0.27->omicverse==1.6.10->-r requirements.txt (line 5)) (2.22.1)
-Requirement already satisfied: wrapt>=1.0 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from formulaic>=0.2.2->lifelines>=0.27->omicverse==1.6.10->-r requirements.txt (line 5)) (2.2.1)
-Requirement already satisfied: anndata in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from metatime>=1.3.0->omicverse==1.6.10->-r requirements.txt (line 5)) (0.11.4)
-Requirement already satisfied: harmonypy in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from metatime>=1.3.0->omicverse==1.6.10->-r requirements.txt (line 5)) (2.0.0)
-Requirement already satisfied: dill>=0.4.1 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from multiprocess>=0.70->omicverse==1.6.10->-r requirements.txt (line 5)) (0.4.1)
-Requirement already satisfied: llvmlite<0.48,>=0.47.0dev0 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from numba>=0.56->omicverse==1.6.10->-r requirements.txt (line 5)) (0.47.0)
-Requirement already satisfied: ptyprocess>=0.5 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from pexpect>4.6->ipython>=6.1.0->ipywidgets>=8.0->omicverse==1.6.10->-r requirements.txt (line 5)) (0.7.0)
-Requirement already satisfied: mizani~=0.11.0 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from plotnine>=0.13.0->ktplotspy>=0.1->omicverse==1.6.10->-r requirements.txt (line 5)) (0.11.4)
-Requirement already satisfied: biopython>=1.80 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from pycirclize>=1.7.2->ktplotspy>=0.1->omicverse==1.6.10->-r requirements.txt (line 5)) (1.87)
-Requirement already satisfied: formulaic-contrasts>=0.2.0 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from pydeseq2>=0.4.1->omicverse==1.6.10->-r requirements.txt (line 5)) (1.0.0)
-Requirement already satisfied: array-api-compat!=1.5,>1.4 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from anndata->metatime>=1.3.0->omicverse==1.6.10->-r requirements.txt (line 5)) (1.15.0)
-Requirement already satisfied: natsort in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from anndata->metatime>=1.3.0->omicverse==1.6.10->-r requirements.txt (line 5)) (8.4.0)
-Requirement already satisfied: session-info in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from formulaic-contrasts>=0.2.0->pydeseq2>=0.4.1->omicverse==1.6.10->-r requirements.txt (line 5)) (1.0.1)
-Requirement already satisfied: six>=1.5 in /share/tools/miniconda3/23.11/envs/pytorch-2.0.1-gpu/lib/python3.11/site-packages (from python-dateutil>=2.7->matplotlib->locCSN==0.0.12->-r requirements.txt (line 4)) (1.16.0)
-Requirement already satisfied: charset-normalizer<4,>=2 in /share/tools/miniconda3/23.11/envs/pytorch-2.0.1-gpu/lib/python3.11/site-packages (from requests[socks]->gdown>=4.6->omicverse==1.6.10->-r requirements.txt (line 5)) (2.0.4)
-Requirement already satisfied: idna<4,>=2.5 in /share/tools/miniconda3/23.11/envs/pytorch-2.0.1-gpu/lib/python3.11/site-packages (from requests[socks]->gdown>=4.6->omicverse==1.6.10->-r requirements.txt (line 5)) (3.7)
-Requirement already satisfied: urllib3<3,>=1.21.1 in /share/tools/miniconda3/23.11/envs/pytorch-2.0.1-gpu/lib/python3.11/site-packages (from requests[socks]->gdown>=4.6->omicverse==1.6.10->-r requirements.txt (line 5)) (2.1.0)
-Requirement already satisfied: certifi>=2017.4.17 in /share/tools/miniconda3/23.11/envs/pytorch-2.0.1-gpu/lib/python3.11/site-packages (from requests[socks]->gdown>=4.6->omicverse==1.6.10->-r requirements.txt (line 5)) (2024.12.14)
-Requirement already satisfied: legacy-api-wrap>=1.4 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from scanpy->locCSN==0.0.12->-r requirements.txt (line 4)) (1.5)
-Requirement already satisfied: patsy!=1.0.0 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from scanpy->locCSN==0.0.12->-r requirements.txt (line 4)) (1.0.2)
-Requirement already satisfied: pynndescent>=0.5 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from scanpy->locCSN==0.0.12->-r requirements.txt (line 4)) (0.6.0)
-Requirement already satisfied: session-info2 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from scanpy->locCSN==0.0.12->-r requirements.txt (line 4)) (0.4.1)
-Requirement already satisfied: umap-learn!=0.5.0,>=0.5 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from scanpy->locCSN==0.0.12->-r requirements.txt (line 4)) (0.5.7)
-Requirement already satisfied: threadpoolctl>=3.1.0 in /share/tools/miniconda3/23.11/envs/pytorch-2.0.1-gpu/lib/python3.11/site-packages (from scikit-learn>=1.2->omicverse==1.6.10->-r requirements.txt (line 5)) (3.5.0)
-Requirement already satisfied: executing>=1.2.0 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from stack_data>=0.6.0->ipython>=6.1.0->ipywidgets>=8.0->omicverse==1.6.10->-r requirements.txt (line 5)) (2.2.1)
-Requirement already satisfied: asttokens>=2.1.0 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from stack_data>=0.6.0->ipython>=6.1.0->ipywidgets>=8.0->omicverse==1.6.10->-r requirements.txt (line 5)) (3.0.1)
-Requirement already satisfied: pure-eval in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from stack_data>=0.6.0->ipython>=6.1.0->ipywidgets>=8.0->omicverse==1.6.10->-r requirements.txt (line 5)) (0.2.3)
-Requirement already satisfied: absl-py>=0.4 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from tensorboard>=2.6->omicverse==1.6.10->-r requirements.txt (line 5)) (2.4.0)
-Requirement already satisfied: grpcio>=1.48.2 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from tensorboard>=2.6->omicverse==1.6.10->-r requirements.txt (line 5)) (1.81.1)
-Requirement already satisfied: markdown>=2.6.8 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from tensorboard>=2.6->omicverse==1.6.10->-r requirements.txt (line 5)) (3.10.2)
-Requirement already satisfied: protobuf!=4.24.0,>=3.19.6 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from tensorboard>=2.6->omicverse==1.6.10->-r requirements.txt (line 5)) (7.35.1)
-Requirement already satisfied: setuptools>=41.0.0 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from tensorboard>=2.6->omicverse==1.6.10->-r requirements.txt (line 5)) (82.0.1)
-Requirement already satisfied: tensorboard-data-server<0.8.0,>=0.7.0 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from tensorboard>=2.6->omicverse==1.6.10->-r requirements.txt (line 5)) (0.7.2)
-Requirement already satisfied: werkzeug>=1.0.1 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from tensorboard>=2.6->omicverse==1.6.10->-r requirements.txt (line 5)) (3.1.8)
-Requirement already satisfied: huggingface-hub<2.0,>=1.5.0 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from transformers>=0.30->omicverse==1.6.10->-r requirements.txt (line 5)) (1.19.0)
-Requirement already satisfied: regex>=2025.10.22 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from transformers>=0.30->omicverse==1.6.10->-r requirements.txt (line 5)) (2026.5.9)
-Requirement already satisfied: tokenizers<=0.23.0,>=0.22.0 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from transformers>=0.30->omicverse==1.6.10->-r requirements.txt (line 5)) (0.22.2)
-Requirement already satisfied: typer in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from transformers>=0.30->omicverse==1.6.10->-r requirements.txt (line 5)) (0.25.1)
-Requirement already satisfied: safetensors>=0.4.3 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from transformers>=0.30->omicverse==1.6.10->-r requirements.txt (line 5)) (0.8.0)
-Requirement already satisfied: click>=8.4.0 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from huggingface-hub<2.0,>=1.5.0->transformers>=0.30->omicverse==1.6.10->-r requirements.txt (line 5)) (8.4.1)
-Requirement already satisfied: fsspec>=2023.5.0 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from huggingface-hub<2.0,>=1.5.0->transformers>=0.30->omicverse==1.6.10->-r requirements.txt (line 5)) (2026.4.0)
-Requirement already satisfied: hf-xet<2.0.0,>=1.5.1 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from huggingface-hub<2.0,>=1.5.0->transformers>=0.30->omicverse==1.6.10->-r requirements.txt (line 5)) (1.5.1)
-Requirement already satisfied: httpx<1,>=0.23.0 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from huggingface-hub<2.0,>=1.5.0->transformers>=0.30->omicverse==1.6.10->-r requirements.txt (line 5)) (0.28.1)
-Requirement already satisfied: anyio in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from httpx<1,>=0.23.0->huggingface-hub<2.0,>=1.5.0->transformers>=0.30->omicverse==1.6.10->-r requirements.txt (line 5)) (4.13.0)
-Requirement already satisfied: httpcore==1.* in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from httpx<1,>=0.23.0->huggingface-hub<2.0,>=1.5.0->transformers>=0.30->omicverse==1.6.10->-r requirements.txt (line 5)) (1.0.9)
-Requirement already satisfied: h11>=0.16 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from httpcore==1.*->httpx<1,>=0.23.0->huggingface-hub<2.0,>=1.5.0->transformers>=0.30->omicverse==1.6.10->-r requirements.txt (line 5)) (0.16.0)
-Requirement already satisfied: shellingham>=1.3.0 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from typer->transformers>=0.30->omicverse==1.6.10->-r requirements.txt (line 5)) (1.5.4)
-Requirement already satisfied: rich>=13.8.0 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from typer->transformers>=0.30->omicverse==1.6.10->-r requirements.txt (line 5)) (15.0.0)
-Requirement already satisfied: annotated-doc>=0.0.2 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from typer->transformers>=0.30->omicverse==1.6.10->-r requirements.txt (line 5)) (0.0.4)
-Requirement already satisfied: markdown-it-py>=2.2.0 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from rich>=13.8.0->typer->transformers>=0.30->omicverse==1.6.10->-r requirements.txt (line 5)) (4.2.0)
-Requirement already satisfied: mdurl~=0.1 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from markdown-it-py>=2.2.0->rich>=13.8.0->typer->transformers>=0.30->omicverse==1.6.10->-r requirements.txt (line 5)) (0.1.2)
-Requirement already satisfied: markupsafe>=2.1.1 in /share/tools/miniconda3/23.11/envs/pytorch-2.0.1-gpu/lib/python3.11/site-packages (from werkzeug>=1.0.1->tensorboard>=2.6->omicverse==1.6.10->-r requirements.txt (line 5)) (2.1.3)
-Requirement already satisfied: soupsieve>=1.6.1 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from beautifulsoup4->gdown>=4.6->omicverse==1.6.10->-r requirements.txt (line 5)) (2.8.4)
-Requirement already satisfied: toolz>=0.8.0 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from cytoolz->ctxcore>=0.2->omicverse==1.6.10->-r requirements.txt (line 5)) (1.1.0)
-Requirement already satisfied: python-utils>=3.8.1 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from progressbar2->pygam==0.8.0->omicverse==1.6.10->-r requirements.txt (line 5)) (3.9.1)
-Requirement already satisfied: nvidia-ml-py>=12.0.0 in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from pynvml->omicverse==1.6.10->-r requirements.txt (line 5)) (13.610.43)
-Requirement already satisfied: PySocks!=1.5.7,>=1.5.6 in /share/tools/miniconda3/23.11/envs/pytorch-2.0.1-gpu/lib/python3.11/site-packages (from requests[socks]->gdown>=4.6->omicverse==1.6.10->-r requirements.txt (line 5)) (1.7.1)
-Requirement already satisfied: stdlib_list in /home/julien.sottiaux/.local/lib/python3.11/site-packages (from session-info->formulaic-contrasts>=0.2.0->pydeseq2>=0.4.1->omicverse==1.6.10->-r requirements.txt (line 5)) (0.12.0)
-=== Dependency check ===
-No broken requirements found.
-=== Version check ===
-python /share/tools/miniconda3/23.11/envs/pytorch-2.0.1-gpu/bin/python3
-numpy 1.26.4
-scipy 1.11.4
-zarr 2.18.7
-anndata 0.11.4
-torch 2.0.1
-=== Compile gcorr ===
-=== gcorr files ===
-total 1.4M
--rw-r--r-- 1 julien.sottiaux liric 538K Jun  5 11:02 corr.png
-lrwxrwxrwx 1 julien.sottiaux liric   11 Jun 14 10:29 gcorr -> libgcorr.so
--rw-r--r-- 1 julien.sottiaux liric 7.3K Jun 12 15:14 gcorr.cu
--rw-r--r-- 1 julien.sottiaux liric 1.9K Jun  5 11:02 __init__.py
--rwxr-xr-x 1 julien.sottiaux liric 861K Jun 14 10:29 libgcorr.so
-drwxr-xr-x 2 julien.sottiaux liric    1 Jun 14 09:30 __pycache__
-=== gcorr dynamic library check ===
-	linux-vdso.so.1 (0x00007ffcf23dc000)
-	libstdc++.so.6 => /lib64/libstdc++.so.6 (0x000014bfdc727000)
-	libm.so.6 => /lib64/libm.so.6 (0x000014bfdc64c000)
-	libgcc_s.so.1 => /lib64/libgcc_s.so.1 (0x000014bfdc631000)
-	libc.so.6 => /lib64/libc.so.6 (0x000014bfdc428000)
-	/lib64/ld-linux-x86-64.so.2 (0x000014bfdca15000)
-=== Test gcorr loading ===
-gcorr loaded successfully
-=== Run scMUG ===
-
-Database: muraro	Cells: 2122	Genes: 19046
-
-Seed: 1111
-
-GFM: 1
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.49s
-return df: 0.65s
-Epoch [1/50], Loss: 29.4789Epoch [2/50], Loss: 19.9451Epoch [3/50], Loss: 14.7318Epoch [4/50], Loss: 14.2518Epoch [5/50], Loss: 14.0835Epoch [6/50], Loss: 13.9642Epoch [7/50], Loss: 13.8312Epoch [8/50], Loss: 13.6821Epoch [9/50], Loss: 13.5698Epoch [10/50], Loss: 13.5017Epoch [11/50], Loss: 13.4555Epoch [12/50], Loss: 13.4168Epoch [13/50], Loss: 13.3807Epoch [14/50], Loss: 13.3474Epoch [15/50], Loss: 13.3187Epoch [16/50], Loss: 13.2943Epoch [17/50], Loss: 13.2730Epoch [18/50], Loss: 13.2539Epoch [19/50], Loss: 13.2358Epoch [20/50], Loss: 13.2184Epoch [21/50], Loss: 13.2014Epoch [22/50], Loss: 13.1850Epoch [23/50], Loss: 13.1679Epoch [24/50], Loss: 13.1528Epoch [25/50], Loss: 13.1358Epoch [26/50], Loss: 13.1202Epoch [27/50], Loss: 13.1060Epoch [28/50], Loss: 13.0927Epoch [29/50], Loss: 13.0796Epoch [30/50], Loss: 13.0698Epoch [31/50], Loss: 13.0560Epoch [32/50], Loss: 13.0453Epoch [33/50], Loss: 13.0328Epoch [34/50], Loss: 13.0204Epoch [35/50], Loss: 13.0097Epoch [36/50], Loss: 13.0018Epoch [37/50], Loss: 12.9933Epoch [38/50], Loss: 12.9852Epoch [39/50], Loss: 12.9808Epoch [40/50], Loss: 12.9823Epoch [41/50], Loss: 12.9849Epoch [42/50], Loss: 12.9797Epoch [43/50], Loss: 12.9628Epoch [44/50], Loss: 12.9475Epoch [45/50], Loss: 12.9409Epoch [46/50], Loss: 12.9398Epoch [47/50], Loss: 12.9384Epoch [48/50], Loss: 12.9388Epoch [49/50], Loss: 12.9380Epoch [50/50], Loss: 12.9278
-GFM: 2
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.33s
-return df: 0.48s
-Epoch [1/50], Loss: 29.7852Epoch [2/50], Loss: 20.9030Epoch [3/50], Loss: 15.0859Epoch [4/50], Loss: 14.5276Epoch [5/50], Loss: 14.3487Epoch [6/50], Loss: 14.2476Epoch [7/50], Loss: 14.1618Epoch [8/50], Loss: 14.0529Epoch [9/50], Loss: 13.9456Epoch [10/50], Loss: 13.8510Epoch [11/50], Loss: 13.7684Epoch [12/50], Loss: 13.7075Epoch [13/50], Loss: 13.6626Epoch [14/50], Loss: 13.6244Epoch [15/50], Loss: 13.5899Epoch [16/50], Loss: 13.5596Epoch [17/50], Loss: 13.5339Epoch [18/50], Loss: 13.5120Epoch [19/50], Loss: 13.4929Epoch [20/50], Loss: 13.4756Epoch [21/50], Loss: 13.4599Epoch [22/50], Loss: 13.4448Epoch [23/50], Loss: 13.4303Epoch [24/50], Loss: 13.4158Epoch [25/50], Loss: 13.4016Epoch [26/50], Loss: 13.3874Epoch [27/50], Loss: 13.3739Epoch [28/50], Loss: 13.3612Epoch [29/50], Loss: 13.3481Epoch [30/50], Loss: 13.3390Epoch [31/50], Loss: 13.3237Epoch [32/50], Loss: 13.3136Epoch [33/50], Loss: 13.3007Epoch [34/50], Loss: 13.2850Epoch [35/50], Loss: 13.2721Epoch [36/50], Loss: 13.2605Epoch [37/50], Loss: 13.2492Epoch [38/50], Loss: 13.2378Epoch [39/50], Loss: 13.2271Epoch [40/50], Loss: 13.2199Epoch [41/50], Loss: 13.2133Epoch [42/50], Loss: 13.2090Epoch [43/50], Loss: 13.2028Epoch [44/50], Loss: 13.1954Epoch [45/50], Loss: 13.1850Epoch [46/50], Loss: 13.1778Epoch [47/50], Loss: 13.1710Epoch [48/50], Loss: 13.1631Epoch [49/50], Loss: 13.1536Epoch [50/50], Loss: 13.1476
-GFM: 3
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.32s
-return df: 0.47s
-Epoch [1/50], Loss: 29.8853Epoch [2/50], Loss: 20.0852Epoch [3/50], Loss: 15.3201Epoch [4/50], Loss: 14.7948Epoch [5/50], Loss: 14.6208Epoch [6/50], Loss: 14.5211Epoch [7/50], Loss: 14.4364Epoch [8/50], Loss: 14.3172Epoch [9/50], Loss: 14.1546Epoch [10/50], Loss: 14.0324Epoch [11/50], Loss: 13.9662Epoch [12/50], Loss: 13.9250Epoch [13/50], Loss: 13.8931Epoch [14/50], Loss: 13.8639Epoch [15/50], Loss: 13.8343Epoch [16/50], Loss: 13.8039Epoch [17/50], Loss: 13.7736Epoch [18/50], Loss: 13.7448Epoch [19/50], Loss: 13.7178Epoch [20/50], Loss: 13.6925Epoch [21/50], Loss: 13.6687Epoch [22/50], Loss: 13.6467Epoch [23/50], Loss: 13.6258Epoch [24/50], Loss: 13.6060Epoch [25/50], Loss: 13.5869Epoch [26/50], Loss: 13.5704Epoch [27/50], Loss: 13.5549Epoch [28/50], Loss: 13.5393Epoch [29/50], Loss: 13.5242Epoch [30/50], Loss: 13.5113Epoch [31/50], Loss: 13.4958Epoch [32/50], Loss: 13.4827Epoch [33/50], Loss: 13.4714Epoch [34/50], Loss: 13.4566Epoch [35/50], Loss: 13.4444Epoch [36/50], Loss: 13.4342Epoch [37/50], Loss: 13.4265Epoch [38/50], Loss: 13.4153Epoch [39/50], Loss: 13.4057Epoch [40/50], Loss: 13.3993Epoch [41/50], Loss: 13.3978Epoch [42/50], Loss: 13.3945Epoch [43/50], Loss: 13.3854Epoch [44/50], Loss: 13.3743Epoch [45/50], Loss: 13.3608Epoch [46/50], Loss: 13.3459Epoch [47/50], Loss: 13.3380Epoch [48/50], Loss: 13.3319Epoch [49/50], Loss: 13.3287Epoch [50/50], Loss: 13.3246
-GFM: 4
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.33s
-return df: 0.49s
-Epoch [1/50], Loss: 29.5036Epoch [2/50], Loss: 21.0608Epoch [3/50], Loss: 14.9895Epoch [4/50], Loss: 14.3031Epoch [5/50], Loss: 14.0265Epoch [6/50], Loss: 13.8564Epoch [7/50], Loss: 13.7396Epoch [8/50], Loss: 13.6399Epoch [9/50], Loss: 13.5576Epoch [10/50], Loss: 13.5013Epoch [11/50], Loss: 13.4614Epoch [12/50], Loss: 13.4289Epoch [13/50], Loss: 13.3974Epoch [14/50], Loss: 13.3639Epoch [15/50], Loss: 13.3293Epoch [16/50], Loss: 13.2964Epoch [17/50], Loss: 13.2672Epoch [18/50], Loss: 13.2409Epoch [19/50], Loss: 13.2173Epoch [20/50], Loss: 13.1955Epoch [21/50], Loss: 13.1758Epoch [22/50], Loss: 13.1576Epoch [23/50], Loss: 13.1410Epoch [24/50], Loss: 13.1263Epoch [25/50], Loss: 13.1123Epoch [26/50], Loss: 13.0994Epoch [27/50], Loss: 13.0870Epoch [28/50], Loss: 13.0752Epoch [29/50], Loss: 13.0639Epoch [30/50], Loss: 13.0540Epoch [31/50], Loss: 13.0438Epoch [32/50], Loss: 13.0357Epoch [33/50], Loss: 13.0283Epoch [34/50], Loss: 13.0218Epoch [35/50], Loss: 13.0176Epoch [36/50], Loss: 13.0187Epoch [37/50], Loss: 13.0129Epoch [38/50], Loss: 12.9950Epoch [39/50], Loss: 12.9772Epoch [40/50], Loss: 12.9604Epoch [41/50], Loss: 12.9482Epoch [42/50], Loss: 12.9385Epoch [43/50], Loss: 12.9287Epoch [44/50], Loss: 12.9185Epoch [45/50], Loss: 12.9109Epoch [46/50], Loss: 12.9033Epoch [47/50], Loss: 12.8939Epoch [48/50], Loss: 12.8804Epoch [49/50], Loss: 12.8635Epoch [50/50], Loss: 12.8471
-GFM: 5
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.32s
-return df: 0.48s
-Epoch [1/50], Loss: 29.9542Epoch [2/50], Loss: 20.6385Epoch [3/50], Loss: 15.1404Epoch [4/50], Loss: 14.6064Epoch [5/50], Loss: 14.4063Epoch [6/50], Loss: 14.2450Epoch [7/50], Loss: 14.0830Epoch [8/50], Loss: 13.9511Epoch [9/50], Loss: 13.8680Epoch [10/50], Loss: 13.8149Epoch [11/50], Loss: 13.7749Epoch [12/50], Loss: 13.7395Epoch [13/50], Loss: 13.7054Epoch [14/50], Loss: 13.6738Epoch [15/50], Loss: 13.6459Epoch [16/50], Loss: 13.6215Epoch [17/50], Loss: 13.6002Epoch [18/50], Loss: 13.5811Epoch [19/50], Loss: 13.5633Epoch [20/50], Loss: 13.5465Epoch [21/50], Loss: 13.5301Epoch [22/50], Loss: 13.5141Epoch [23/50], Loss: 13.4983Epoch [24/50], Loss: 13.4826Epoch [25/50], Loss: 13.4671Epoch [26/50], Loss: 13.4517Epoch [27/50], Loss: 13.4366Epoch [28/50], Loss: 13.4223Epoch [29/50], Loss: 13.4087Epoch [30/50], Loss: 13.3962Epoch [31/50], Loss: 13.3831Epoch [32/50], Loss: 13.3710Epoch [33/50], Loss: 13.3591Epoch [34/50], Loss: 13.3475Epoch [35/50], Loss: 13.3351Epoch [36/50], Loss: 13.3247Epoch [37/50], Loss: 13.3130Epoch [38/50], Loss: 13.3032Epoch [39/50], Loss: 13.2951Epoch [40/50], Loss: 13.2866Epoch [41/50], Loss: 13.2877Epoch [42/50], Loss: 13.2875Epoch [43/50], Loss: 13.2834Epoch [44/50], Loss: 13.2789Epoch [45/50], Loss: 13.2774Epoch [46/50], Loss: 13.2781Epoch [47/50], Loss: 13.2767Epoch [48/50], Loss: 13.2703Epoch [49/50], Loss: 13.2620Epoch [50/50], Loss: 13.2551
-
-Round 0
-dbname:muraro	round:1111	alpha:0	beta:1	acc: 0.90952 	ari: 0.88508 	nmi: 0.84885
-dbname:muraro	round:1111	alpha:0.001	beta:1	acc: 0.91423 	ari: 0.89381 	nmi: 0.85692
-dbname:muraro	round:1111	alpha:0.01	beta:1	acc: 0.72008 	ari: 0.6625 	nmi: 0.78862
-dbname:muraro	round:1111	alpha:0.1	beta:1	acc: 0.71254 	ari: 0.65959 	nmi: 0.78735
-dbname:muraro	round:1111	alpha:1	beta:1	acc: 0.71206 	ari: 0.65949 	nmi: 0.78734
-dbname:muraro	round:1111	alpha:1	beta:0.1	acc: 0.71159 	ari: 0.6594 	nmi: 0.78732
-dbname:muraro	round:1111	alpha:1	beta:0.01	acc: 0.71159 	ari: 0.6594 	nmi: 0.78732
-dbname:muraro	round:1111	alpha:1	beta:0.001	acc: 0.71159 	ari: 0.6594 	nmi: 0.78732
-dbname:muraro	round:1111	alpha:1	beta:0	acc: 0.71159 	ari: 0.6594 	nmi: 0.78732
-
-Round 1
-dbname:muraro	round:1111	alpha:0	beta:1	acc: 0.90952 	ari: 0.88508 	nmi: 0.84885
-dbname:muraro	round:1111	alpha:0.001	beta:1	acc: 0.91423 	ari: 0.89381 	nmi: 0.85692
-dbname:muraro	round:1111	alpha:0.01	beta:1	acc: 0.72055 	ari: 0.66265 	nmi: 0.78864
-dbname:muraro	round:1111	alpha:0.1	beta:1	acc: 0.71301 	ari: 0.65969 	nmi: 0.78737
-dbname:muraro	round:1111	alpha:1	beta:1	acc: 0.71206 	ari: 0.65949 	nmi: 0.78734
-dbname:muraro	round:1111	alpha:1	beta:0.1	acc: 0.71206 	ari: 0.65949 	nmi: 0.78734
-dbname:muraro	round:1111	alpha:1	beta:0.01	acc: 0.71206 	ari: 0.65949 	nmi: 0.78734
-dbname:muraro	round:1111	alpha:1	beta:0.001	acc: 0.71206 	ari: 0.65949 	nmi: 0.78734
-dbname:muraro	round:1111	alpha:1	beta:0	acc: 0.71206 	ari: 0.65949 	nmi: 0.78734
-
-Round 2
-dbname:muraro	round:1111	alpha:0	beta:1	acc: 0.90952 	ari: 0.88508 	nmi: 0.84885
-dbname:muraro	round:1111	alpha:0.001	beta:1	acc: 0.91423 	ari: 0.89381 	nmi: 0.85692
-dbname:muraro	round:1111	alpha:0.01	beta:1	acc: 0.72055 	ari: 0.66265 	nmi: 0.78864
-dbname:muraro	round:1111	alpha:0.1	beta:1	acc: 0.71254 	ari: 0.65959 	nmi: 0.78735
-dbname:muraro	round:1111	alpha:1	beta:1	acc: 0.71159 	ari: 0.6594 	nmi: 0.78732
-dbname:muraro	round:1111	alpha:1	beta:0.1	acc: 0.71159 	ari: 0.6594 	nmi: 0.78732
-dbname:muraro	round:1111	alpha:1	beta:0.01	acc: 0.71159 	ari: 0.6594 	nmi: 0.78732
-dbname:muraro	round:1111	alpha:1	beta:0.001	acc: 0.71159 	ari: 0.6594 	nmi: 0.78732
-dbname:muraro	round:1111	alpha:1	beta:0	acc: 0.71159 	ari: 0.6594 	nmi: 0.78732
-
-Seed: 2222
-
-GFM: 1
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.34s
-return df: 0.49s
-Epoch [1/50], Loss: 29.4255Epoch [2/50], Loss: 19.6493Epoch [3/50], Loss: 14.7407Epoch [4/50], Loss: 14.2519Epoch [5/50], Loss: 14.0771Epoch [6/50], Loss: 13.9501Epoch [7/50], Loss: 13.8176Epoch [8/50], Loss: 13.6824Epoch [9/50], Loss: 13.5784Epoch [10/50], Loss: 13.5120Epoch [11/50], Loss: 13.4697Epoch [12/50], Loss: 13.4382Epoch [13/50], Loss: 13.4104Epoch [14/50], Loss: 13.3831Epoch [15/50], Loss: 13.3551Epoch [16/50], Loss: 13.3267Epoch [17/50], Loss: 13.2995Epoch [18/50], Loss: 13.2742Epoch [19/50], Loss: 13.2506Epoch [20/50], Loss: 13.2288Epoch [21/50], Loss: 13.2083Epoch [22/50], Loss: 13.1883Epoch [23/50], Loss: 13.1693Epoch [24/50], Loss: 13.1517Epoch [25/50], Loss: 13.1350Epoch [26/50], Loss: 13.1184Epoch [27/50], Loss: 13.1022Epoch [28/50], Loss: 13.0858Epoch [29/50], Loss: 13.0696Epoch [30/50], Loss: 13.0528Epoch [31/50], Loss: 13.0358Epoch [32/50], Loss: 13.0191Epoch [33/50], Loss: 13.0024Epoch [34/50], Loss: 12.9872Epoch [35/50], Loss: 12.9730Epoch [36/50], Loss: 12.9605Epoch [37/50], Loss: 12.9486Epoch [38/50], Loss: 12.9378Epoch [39/50], Loss: 12.9276Epoch [40/50], Loss: 12.9180Epoch [41/50], Loss: 12.9094Epoch [42/50], Loss: 12.9037Epoch [43/50], Loss: 12.9015Epoch [44/50], Loss: 12.9032Epoch [45/50], Loss: 12.8975Epoch [46/50], Loss: 12.8766Epoch [47/50], Loss: 12.8553Epoch [48/50], Loss: 12.8409Epoch [49/50], Loss: 12.8311Epoch [50/50], Loss: 12.8220
-GFM: 2
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.34s
-return df: 0.49s
-Epoch [1/50], Loss: 29.7545Epoch [2/50], Loss: 20.2459Epoch [3/50], Loss: 15.0411Epoch [4/50], Loss: 14.5165Epoch [5/50], Loss: 14.3257Epoch [6/50], Loss: 14.1959Epoch [7/50], Loss: 14.0657Epoch [8/50], Loss: 13.9290Epoch [9/50], Loss: 13.8232Epoch [10/50], Loss: 13.7525Epoch [11/50], Loss: 13.7034Epoch [12/50], Loss: 13.6640Epoch [13/50], Loss: 13.6283Epoch [14/50], Loss: 13.5947Epoch [15/50], Loss: 13.5639Epoch [16/50], Loss: 13.5366Epoch [17/50], Loss: 13.5126Epoch [18/50], Loss: 13.4919Epoch [19/50], Loss: 13.4726Epoch [20/50], Loss: 13.4548Epoch [21/50], Loss: 13.4378Epoch [22/50], Loss: 13.4211Epoch [23/50], Loss: 13.4051Epoch [24/50], Loss: 13.3892Epoch [25/50], Loss: 13.3736Epoch [26/50], Loss: 13.3580Epoch [27/50], Loss: 13.3428Epoch [28/50], Loss: 13.3276Epoch [29/50], Loss: 13.3128Epoch [30/50], Loss: 13.2983Epoch [31/50], Loss: 13.2847Epoch [32/50], Loss: 13.2709Epoch [33/50], Loss: 13.2568Epoch [34/50], Loss: 13.2429Epoch [35/50], Loss: 13.2298Epoch [36/50], Loss: 13.2166Epoch [37/50], Loss: 13.2047Epoch [38/50], Loss: 13.1924Epoch [39/50], Loss: 13.1819Epoch [40/50], Loss: 13.1726Epoch [41/50], Loss: 13.1669Epoch [42/50], Loss: 13.1601Epoch [43/50], Loss: 13.1514Epoch [44/50], Loss: 13.1421Epoch [45/50], Loss: 13.1316Epoch [46/50], Loss: 13.1257Epoch [47/50], Loss: 13.1255Epoch [48/50], Loss: 13.1278Epoch [49/50], Loss: 13.1347Epoch [50/50], Loss: 13.1378
-GFM: 3
-cells:2122 genes:8000
-load data: 0.03s
-calculate: 0.33s
-return df: 0.48s
-Epoch [1/50], Loss: 30.0988Epoch [2/50], Loss: 21.0895Epoch [3/50], Loss: 15.3227Epoch [4/50], Loss: 14.7701Epoch [5/50], Loss: 14.5825Epoch [6/50], Loss: 14.4394Epoch [7/50], Loss: 14.2948Epoch [8/50], Loss: 14.1623Epoch [9/50], Loss: 14.0576Epoch [10/50], Loss: 13.9870Epoch [11/50], Loss: 13.9374Epoch [12/50], Loss: 13.8975Epoch [13/50], Loss: 13.8615Epoch [14/50], Loss: 13.8274Epoch [15/50], Loss: 13.7966Epoch [16/50], Loss: 13.7700Epoch [17/50], Loss: 13.7471Epoch [18/50], Loss: 13.7267Epoch [19/50], Loss: 13.7078Epoch [20/50], Loss: 13.6900Epoch [21/50], Loss: 13.6728Epoch [22/50], Loss: 13.6560Epoch [23/50], Loss: 13.6393Epoch [24/50], Loss: 13.6227Epoch [25/50], Loss: 13.6067Epoch [26/50], Loss: 13.5911Epoch [27/50], Loss: 13.5752Epoch [28/50], Loss: 13.5595Epoch [29/50], Loss: 13.5449Epoch [30/50], Loss: 13.5308Epoch [31/50], Loss: 13.5172Epoch [32/50], Loss: 13.5049Epoch [33/50], Loss: 13.4917Epoch [34/50], Loss: 13.4801Epoch [35/50], Loss: 13.4690Epoch [36/50], Loss: 13.4574Epoch [37/50], Loss: 13.4445Epoch [38/50], Loss: 13.4337Epoch [39/50], Loss: 13.4195Epoch [40/50], Loss: 13.4094Epoch [41/50], Loss: 13.4006Epoch [42/50], Loss: 13.3921Epoch [43/50], Loss: 13.3868Epoch [44/50], Loss: 13.3836Epoch [45/50], Loss: 13.3810Epoch [46/50], Loss: 13.3783Epoch [47/50], Loss: 13.3807Epoch [48/50], Loss: 13.3775Epoch [49/50], Loss: 13.3659Epoch [50/50], Loss: 13.3560
-GFM: 4
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.32s
-return df: 0.48s
-Epoch [1/50], Loss: infEpoch [2/50], Loss: infEpoch [3/50], Loss: infEpoch [4/50], Loss: infEpoch [5/50], Loss: infEpoch [6/50], Loss: infEpoch [7/50], Loss: infEpoch [8/50], Loss: infEpoch [9/50], Loss: infEpoch [10/50], Loss: infEpoch [11/50], Loss: infEpoch [12/50], Loss: infEpoch [13/50], Loss: infEpoch [14/50], Loss: infEpoch [15/50], Loss: infEpoch [16/50], Loss: infEpoch [17/50], Loss: infEpoch [18/50], Loss: infEpoch [19/50], Loss: infEpoch [20/50], Loss: infEpoch [21/50], Loss: infEpoch [22/50], Loss: infEpoch [23/50], Loss: infEpoch [24/50], Loss: infEpoch [25/50], Loss: infEpoch [26/50], Loss: infEpoch [27/50], Loss: infEpoch [28/50], Loss: infEpoch [29/50], Loss: infEpoch [30/50], Loss: infEpoch [31/50], Loss: infEpoch [32/50], Loss: infEpoch [33/50], Loss: infEpoch [34/50], Loss: infEpoch [35/50], Loss: infEpoch [36/50], Loss: infEpoch [37/50], Loss: infEpoch [38/50], Loss: infEpoch [39/50], Loss: infEpoch [40/50], Loss: infEpoch [41/50], Loss: infEpoch [42/50], Loss: infEpoch [43/50], Loss: infEpoch [44/50], Loss: infEpoch [45/50], Loss: infEpoch [46/50], Loss: infEpoch [47/50], Loss: infEpoch [48/50], Loss: infEpoch [49/50], Loss: infEpoch [50/50], Loss: inf
-GFM: 5
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.32s
-return df: 0.48s
-Epoch [1/50], Loss: 29.7571Epoch [2/50], Loss: 19.7709Epoch [3/50], Loss: 15.1253Epoch [4/50], Loss: 14.6328Epoch [5/50], Loss: 14.4754Epoch [6/50], Loss: 14.3823Epoch [7/50], Loss: 14.3043Epoch [8/50], Loss: 14.2096Epoch [9/50], Loss: 14.1024Epoch [10/50], Loss: 14.0095Epoch [11/50], Loss: 13.9224Epoch [12/50], Loss: 13.8374Epoch [13/50], Loss: 13.7642Epoch [14/50], Loss: 13.7067Epoch [15/50], Loss: 13.6654Epoch [16/50], Loss: 13.6354Epoch [17/50], Loss: 13.6117Epoch [18/50], Loss: 13.5916Epoch [19/50], Loss: 13.5734Epoch [20/50], Loss: 13.5562Epoch [21/50], Loss: 13.5392Epoch [22/50], Loss: 13.5225Epoch [23/50], Loss: 13.5054Epoch [24/50], Loss: 13.4887Epoch [25/50], Loss: 13.4714Epoch [26/50], Loss: 13.4550Epoch [27/50], Loss: 13.4391Epoch [28/50], Loss: 13.4242Epoch [29/50], Loss: 13.4100Epoch [30/50], Loss: 13.3965Epoch [31/50], Loss: 13.3830Epoch [32/50], Loss: 13.3707Epoch [33/50], Loss: 13.3577Epoch [34/50], Loss: 13.3458Epoch [35/50], Loss: 13.3331Epoch [36/50], Loss: 13.3219Epoch [37/50], Loss: 13.3103Epoch [38/50], Loss: 13.3006Epoch [39/50], Loss: 13.2921Epoch [40/50], Loss: 13.2867Epoch [41/50], Loss: 13.2800Epoch [42/50], Loss: 13.2689Epoch [43/50], Loss: 13.2590Epoch [44/50], Loss: 13.2552Epoch [45/50], Loss: 13.2522Epoch [46/50], Loss: 13.2555Epoch [47/50], Loss: 13.2597Epoch [48/50], Loss: 13.2584Epoch [49/50], Loss: 13.2552Epoch [50/50], Loss: 13.2507
-[WARNING] NaN/Inf detected before local reducer, GFM=4
-NaN count: 67904
-Inf count: 0
-
-Round 0
-[WARNING] NaN/Inf detected before global reducer, GFM=4
-NaN count: 67904
-Inf count: 0
-dbname:muraro	round:2222	alpha:0	beta:1	acc: 0.68709 	ari: 0.51052 	nmi: 0.62967
-dbname:muraro	round:2222	alpha:0.001	beta:1	acc: 0.705 	ari: 0.52565 	nmi: 0.64444
-dbname:muraro	round:2222	alpha:0.01	beta:1	acc: 0.94439 	ari: 0.90649 	nmi: 0.85827
-dbname:muraro	round:2222	alpha:0.1	beta:1	acc: 0.91942 	ari: 0.91084 	nmi: 0.87312
-dbname:muraro	round:2222	alpha:1	beta:1	acc: 0.91942 	ari: 0.91084 	nmi: 0.87312
-dbname:muraro	round:2222	alpha:1	beta:0.1	acc: 0.91942 	ari: 0.91084 	nmi: 0.87312
-dbname:muraro	round:2222	alpha:1	beta:0.01	acc: 0.91942 	ari: 0.91084 	nmi: 0.87312
-dbname:muraro	round:2222	alpha:1	beta:0.001	acc: 0.91942 	ari: 0.91084 	nmi: 0.87312
-dbname:muraro	round:2222	alpha:1	beta:0	acc: 0.91942 	ari: 0.91084 	nmi: 0.87312
-
-Round 1
-[WARNING] NaN/Inf detected before global reducer, GFM=4
-NaN count: 67904
-Inf count: 0
-dbname:muraro	round:2222	alpha:0	beta:1	acc: 0.6885 	ari: 0.51155 	nmi: 0.63075
-dbname:muraro	round:2222	alpha:0.001	beta:1	acc: 0.70311 	ari: 0.52469 	nmi: 0.64417
-dbname:muraro	round:2222	alpha:0.01	beta:1	acc: 0.94439 	ari: 0.90649 	nmi: 0.85827
-dbname:muraro	round:2222	alpha:0.1	beta:1	acc: 0.91942 	ari: 0.91084 	nmi: 0.87312
-dbname:muraro	round:2222	alpha:1	beta:1	acc: 0.91942 	ari: 0.91084 	nmi: 0.87312
-dbname:muraro	round:2222	alpha:1	beta:0.1	acc: 0.91942 	ari: 0.91084 	nmi: 0.87312
-dbname:muraro	round:2222	alpha:1	beta:0.01	acc: 0.91942 	ari: 0.91084 	nmi: 0.87312
-dbname:muraro	round:2222	alpha:1	beta:0.001	acc: 0.91942 	ari: 0.91084 	nmi: 0.87312
-dbname:muraro	round:2222	alpha:1	beta:0	acc: 0.91942 	ari: 0.91084 	nmi: 0.87312
-
-Round 2
-[WARNING] NaN/Inf detected before global reducer, GFM=4
-NaN count: 67904
-Inf count: 0
-dbname:muraro	round:2222	alpha:0	beta:1	acc: 0.68756 	ari: 0.50983 	nmi: 0.62883
-dbname:muraro	round:2222	alpha:0.001	beta:1	acc: 0.705 	ari: 0.52565 	nmi: 0.64444
-dbname:muraro	round:2222	alpha:0.01	beta:1	acc: 0.94439 	ari: 0.90649 	nmi: 0.85827
-dbname:muraro	round:2222	alpha:0.1	beta:1	acc: 0.91942 	ari: 0.91084 	nmi: 0.87312
-dbname:muraro	round:2222	alpha:1	beta:1	acc: 0.91942 	ari: 0.91084 	nmi: 0.87312
-dbname:muraro	round:2222	alpha:1	beta:0.1	acc: 0.91942 	ari: 0.91084 	nmi: 0.87312
-dbname:muraro	round:2222	alpha:1	beta:0.01	acc: 0.91942 	ari: 0.91084 	nmi: 0.87312
-dbname:muraro	round:2222	alpha:1	beta:0.001	acc: 0.91942 	ari: 0.91084 	nmi: 0.87312
-dbname:muraro	round:2222	alpha:1	beta:0	acc: 0.91942 	ari: 0.91084 	nmi: 0.87312
-
-Seed: 3333
-
-GFM: 1
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.32s
-return df: 0.48s
-Epoch [1/50], Loss: 29.4435Epoch [2/50], Loss: 20.1108Epoch [3/50], Loss: 14.7964Epoch [4/50], Loss: 14.2676Epoch [5/50], Loss: 14.0892Epoch [6/50], Loss: 13.9726Epoch [7/50], Loss: 13.8612Epoch [8/50], Loss: 13.7555Epoch [9/50], Loss: 13.6552Epoch [10/50], Loss: 13.5643Epoch [11/50], Loss: 13.4978Epoch [12/50], Loss: 13.4505Epoch [13/50], Loss: 13.4116Epoch [14/50], Loss: 13.3745Epoch [15/50], Loss: 13.3381Epoch [16/50], Loss: 13.3045Epoch [17/50], Loss: 13.2755Epoch [18/50], Loss: 13.2505Epoch [19/50], Loss: 13.2285Epoch [20/50], Loss: 13.2087Epoch [21/50], Loss: 13.1887Epoch [22/50], Loss: 13.1711Epoch [23/50], Loss: 13.1526Epoch [24/50], Loss: 13.1363Epoch [25/50], Loss: 13.1207Epoch [26/50], Loss: 13.1068Epoch [27/50], Loss: 13.0936Epoch [28/50], Loss: 13.0813Epoch [29/50], Loss: 13.0701Epoch [30/50], Loss: 13.0598Epoch [31/50], Loss: 13.0512Epoch [32/50], Loss: 13.0441Epoch [33/50], Loss: 13.0429Epoch [34/50], Loss: 13.0435Epoch [35/50], Loss: 13.0435Epoch [36/50], Loss: 13.0319Epoch [37/50], Loss: 13.0143Epoch [38/50], Loss: 12.9975Epoch [39/50], Loss: 12.9842Epoch [40/50], Loss: 12.9727Epoch [41/50], Loss: 12.9635Epoch [42/50], Loss: 12.9564Epoch [43/50], Loss: 12.9535Epoch [44/50], Loss: 12.9504Epoch [45/50], Loss: 12.9417Epoch [46/50], Loss: 12.9268Epoch [47/50], Loss: 12.9117Epoch [48/50], Loss: 12.8982Epoch [49/50], Loss: 12.8853Epoch [50/50], Loss: 12.8716
-GFM: 2
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.32s
-return df: 0.47s
-Epoch [1/50], Loss: 29.4694Epoch [2/50], Loss: 19.0543Epoch [3/50], Loss: 15.0161Epoch [4/50], Loss: 14.5317Epoch [5/50], Loss: 14.3575Epoch [6/50], Loss: 14.2644Epoch [7/50], Loss: 14.2010Epoch [8/50], Loss: 14.1355Epoch [9/50], Loss: 14.0511Epoch [10/50], Loss: 13.9525Epoch [11/50], Loss: 13.8598Epoch [12/50], Loss: 13.7841Epoch [13/50], Loss: 13.7292Epoch [14/50], Loss: 13.6888Epoch [15/50], Loss: 13.6563Epoch [16/50], Loss: 13.6265Epoch [17/50], Loss: 13.5963Epoch [18/50], Loss: 13.5663Epoch [19/50], Loss: 13.5383Epoch [20/50], Loss: 13.5139Epoch [21/50], Loss: 13.4926Epoch [22/50], Loss: 13.4736Epoch [23/50], Loss: 13.4561Epoch [24/50], Loss: 13.4395Epoch [25/50], Loss: 13.4239Epoch [26/50], Loss: 13.4085Epoch [27/50], Loss: 13.3938Epoch [28/50], Loss: 13.3799Epoch [29/50], Loss: 13.3662Epoch [30/50], Loss: 13.3530Epoch [31/50], Loss: 13.3402Epoch [32/50], Loss: 13.3271Epoch [33/50], Loss: 13.3141Epoch [34/50], Loss: 13.3009Epoch [35/50], Loss: 13.2865Epoch [36/50], Loss: 13.2719Epoch [37/50], Loss: 13.2572Epoch [38/50], Loss: 13.2435Epoch [39/50], Loss: 13.2315Epoch [40/50], Loss: 13.2212Epoch [41/50], Loss: 13.2104Epoch [42/50], Loss: 13.2040Epoch [43/50], Loss: 13.1992Epoch [44/50], Loss: 13.1902Epoch [45/50], Loss: 13.1830Epoch [46/50], Loss: 13.1828Epoch [47/50], Loss: 13.1859Epoch [48/50], Loss: 13.1917Epoch [49/50], Loss: 13.1980Epoch [50/50], Loss: 13.2031
-GFM: 3
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.32s
-return df: 0.47s
-Epoch [1/50], Loss: 30.0722Epoch [2/50], Loss: 20.5271Epoch [3/50], Loss: 15.4266Epoch [4/50], Loss: 14.7745Epoch [5/50], Loss: 14.5462Epoch [6/50], Loss: 14.3992Epoch [7/50], Loss: 14.2787Epoch [8/50], Loss: 14.1669Epoch [9/50], Loss: 14.0633Epoch [10/50], Loss: 13.9828Epoch [11/50], Loss: 13.9248Epoch [12/50], Loss: 13.8797Epoch [13/50], Loss: 13.8417Epoch [14/50], Loss: 13.8088Epoch [15/50], Loss: 13.7805Epoch [16/50], Loss: 13.7558Epoch [17/50], Loss: 13.7339Epoch [18/50], Loss: 13.7139Epoch [19/50], Loss: 13.6946Epoch [20/50], Loss: 13.6757Epoch [21/50], Loss: 13.6570Epoch [22/50], Loss: 13.6390Epoch [23/50], Loss: 13.6211Epoch [24/50], Loss: 13.6041Epoch [25/50], Loss: 13.5872Epoch [26/50], Loss: 13.5717Epoch [27/50], Loss: 13.5562Epoch [28/50], Loss: 13.5416Epoch [29/50], Loss: 13.5273Epoch [30/50], Loss: 13.5139Epoch [31/50], Loss: 13.5005Epoch [32/50], Loss: 13.4881Epoch [33/50], Loss: 13.4755Epoch [34/50], Loss: 13.4639Epoch [35/50], Loss: 13.4524Epoch [36/50], Loss: 13.4412Epoch [37/50], Loss: 13.4318Epoch [38/50], Loss: 13.4232Epoch [39/50], Loss: 13.4173Epoch [40/50], Loss: 13.4133Epoch [41/50], Loss: 13.4151Epoch [42/50], Loss: 13.4114Epoch [43/50], Loss: 13.3966Epoch [44/50], Loss: 13.3818Epoch [45/50], Loss: 13.3725Epoch [46/50], Loss: 13.3659Epoch [47/50], Loss: 13.3637Epoch [48/50], Loss: 13.3656Epoch [49/50], Loss: 13.3681Epoch [50/50], Loss: 13.3697
-GFM: 4
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.32s
-return df: 0.47s
-Epoch [1/50], Loss: 29.4549Epoch [2/50], Loss: 19.7012Epoch [3/50], Loss: 14.8041Epoch [4/50], Loss: 14.2892Epoch [5/50], Loss: 14.1123Epoch [6/50], Loss: 14.0003Epoch [7/50], Loss: 13.8931Epoch [8/50], Loss: 13.7538Epoch [9/50], Loss: 13.6145Epoch [10/50], Loss: 13.5147Epoch [11/50], Loss: 13.4442Epoch [12/50], Loss: 13.3907Epoch [13/50], Loss: 13.3489Epoch [14/50], Loss: 13.3158Epoch [15/50], Loss: 13.2874Epoch [16/50], Loss: 13.2619Epoch [17/50], Loss: 13.2379Epoch [18/50], Loss: 13.2152Epoch [19/50], Loss: 13.1934Epoch [20/50], Loss: 13.1727Epoch [21/50], Loss: 13.1533Epoch [22/50], Loss: 13.1352Epoch [23/50], Loss: 13.1183Epoch [24/50], Loss: 13.1024Epoch [25/50], Loss: 13.0876Epoch [26/50], Loss: 13.0734Epoch [27/50], Loss: 13.0600Epoch [28/50], Loss: 13.0468Epoch [29/50], Loss: 13.0343Epoch [30/50], Loss: 13.0207Epoch [31/50], Loss: 13.0088Epoch [32/50], Loss: 12.9960Epoch [33/50], Loss: 12.9856Epoch [34/50], Loss: 12.9730Epoch [35/50], Loss: 12.9611Epoch [36/50], Loss: 12.9491Epoch [37/50], Loss: 12.9365Epoch [38/50], Loss: 12.9258Epoch [39/50], Loss: 12.9193Epoch [40/50], Loss: 12.9134Epoch [41/50], Loss: 12.9071Epoch [42/50], Loss: 12.9087Epoch [43/50], Loss: 12.9196Epoch [44/50], Loss: 12.9186Epoch [45/50], Loss: 12.9046Epoch [46/50], Loss: 12.8915Epoch [47/50], Loss: 12.8856Epoch [48/50], Loss: 12.8867Epoch [49/50], Loss: 12.8947Epoch [50/50], Loss: 12.9096
-GFM: 5
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.32s
-return df: 0.47s
-Epoch [1/50], Loss: 29.8229Epoch [2/50], Loss: 20.0705Epoch [3/50], Loss: 15.1442Epoch [4/50], Loss: 14.5995Epoch [5/50], Loss: 14.3889Epoch [6/50], Loss: 14.2268Epoch [7/50], Loss: 14.0744Epoch [8/50], Loss: 13.9436Epoch [9/50], Loss: 13.8561Epoch [10/50], Loss: 13.7997Epoch [11/50], Loss: 13.7556Epoch [12/50], Loss: 13.7159Epoch [13/50], Loss: 13.6794Epoch [14/50], Loss: 13.6473Epoch [15/50], Loss: 13.6198Epoch [16/50], Loss: 13.5956Epoch [17/50], Loss: 13.5741Epoch [18/50], Loss: 13.5541Epoch [19/50], Loss: 13.5343Epoch [20/50], Loss: 13.5154Epoch [21/50], Loss: 13.4970Epoch [22/50], Loss: 13.4793Epoch [23/50], Loss: 13.4626Epoch [24/50], Loss: 13.4463Epoch [25/50], Loss: 13.4306Epoch [26/50], Loss: 13.4150Epoch [27/50], Loss: 13.3998Epoch [28/50], Loss: 13.3846Epoch [29/50], Loss: 13.3707Epoch [30/50], Loss: 13.3545Epoch [31/50], Loss: 13.3392Epoch [32/50], Loss: 13.3279Epoch [33/50], Loss: 13.3103Epoch [34/50], Loss: 13.2929Epoch [35/50], Loss: 13.2845Epoch [36/50], Loss: 13.2689Epoch [37/50], Loss: 13.2615Epoch [38/50], Loss: 13.2482Epoch [39/50], Loss: 13.2431Epoch [40/50], Loss: 13.2405Epoch [41/50], Loss: 13.2436Epoch [42/50], Loss: 13.2382Epoch [43/50], Loss: 13.2281Epoch [44/50], Loss: 13.2179Epoch [45/50], Loss: 13.2179Epoch [46/50], Loss: 13.2211Epoch [47/50], Loss: 13.2324Epoch [48/50], Loss: 13.2445Epoch [49/50], Loss: 13.2614Epoch [50/50], Loss: 13.2581
-
-Round 0
-dbname:muraro	round:3333	alpha:0	beta:1	acc: 0.90952 	ari: 0.88823 	nmi: 0.84721
-dbname:muraro	round:3333	alpha:0.001	beta:1	acc: 0.91235 	ari: 0.89619 	nmi: 0.85648
-dbname:muraro	round:3333	alpha:0.01	beta:1	acc: 0.90434 	ari: 0.87894 	nmi: 0.84511
-dbname:muraro	round:3333	alpha:0.1	beta:1	acc: 0.86051 	ari: 0.76274 	nmi: 0.78723
-dbname:muraro	round:3333	alpha:1	beta:1	acc: 0.8591 	ari: 0.75892 	nmi: 0.78581
-dbname:muraro	round:3333	alpha:1	beta:0.1	acc: 0.8591 	ari: 0.75892 	nmi: 0.78581
-dbname:muraro	round:3333	alpha:1	beta:0.01	acc: 0.8591 	ari: 0.75892 	nmi: 0.78581
-dbname:muraro	round:3333	alpha:1	beta:0.001	acc: 0.8591 	ari: 0.75892 	nmi: 0.78581
-dbname:muraro	round:3333	alpha:1	beta:0	acc: 0.8591 	ari: 0.75892 	nmi: 0.78581
-
-Round 1
-dbname:muraro	round:3333	alpha:0	beta:1	acc: 0.90952 	ari: 0.88823 	nmi: 0.84721
-dbname:muraro	round:3333	alpha:0.001	beta:1	acc: 0.91235 	ari: 0.89619 	nmi: 0.85648
-dbname:muraro	round:3333	alpha:0.01	beta:1	acc: 0.90434 	ari: 0.87894 	nmi: 0.84511
-dbname:muraro	round:3333	alpha:0.1	beta:1	acc: 0.86051 	ari: 0.76274 	nmi: 0.78723
-dbname:muraro	round:3333	alpha:1	beta:1	acc: 0.8591 	ari: 0.75892 	nmi: 0.78581
-dbname:muraro	round:3333	alpha:1	beta:0.1	acc: 0.8591 	ari: 0.75892 	nmi: 0.78581
-dbname:muraro	round:3333	alpha:1	beta:0.01	acc: 0.8591 	ari: 0.75892 	nmi: 0.78581
-dbname:muraro	round:3333	alpha:1	beta:0.001	acc: 0.8591 	ari: 0.75892 	nmi: 0.78581
-dbname:muraro	round:3333	alpha:1	beta:0	acc: 0.8591 	ari: 0.75892 	nmi: 0.78581
-
-Round 2
-dbname:muraro	round:3333	alpha:0	beta:1	acc: 0.90952 	ari: 0.88823 	nmi: 0.84721
-dbname:muraro	round:3333	alpha:0.001	beta:1	acc: 0.91235 	ari: 0.89619 	nmi: 0.85648
-dbname:muraro	round:3333	alpha:0.01	beta:1	acc: 0.90434 	ari: 0.87894 	nmi: 0.84511
-dbname:muraro	round:3333	alpha:0.1	beta:1	acc: 0.86051 	ari: 0.76274 	nmi: 0.78723
-dbname:muraro	round:3333	alpha:1	beta:1	acc: 0.8591 	ari: 0.75892 	nmi: 0.78581
-dbname:muraro	round:3333	alpha:1	beta:0.1	acc: 0.8591 	ari: 0.75892 	nmi: 0.78581
-dbname:muraro	round:3333	alpha:1	beta:0.01	acc: 0.8591 	ari: 0.75892 	nmi: 0.78581
-dbname:muraro	round:3333	alpha:1	beta:0.001	acc: 0.8591 	ari: 0.75892 	nmi: 0.78581
-dbname:muraro	round:3333	alpha:1	beta:0	acc: 0.8591 	ari: 0.75892 	nmi: 0.78581
-
-Seed: 4444
-
-GFM: 1
-cells:2122 genes:8000
-load data: 0.03s
-calculate: 0.32s
-return df: 0.48s
-Epoch [1/50], Loss: 29.4608Epoch [2/50], Loss: 19.6401Epoch [3/50], Loss: 14.8977Epoch [4/50], Loss: 14.3106Epoch [5/50], Loss: 14.1207Epoch [6/50], Loss: 14.0120Epoch [7/50], Loss: 13.9215Epoch [8/50], Loss: 13.8157Epoch [9/50], Loss: 13.7014Epoch [10/50], Loss: 13.5937Epoch [11/50], Loss: 13.5139Epoch [12/50], Loss: 13.4623Epoch [13/50], Loss: 13.4243Epoch [14/50], Loss: 13.3913Epoch [15/50], Loss: 13.3602Epoch [16/50], Loss: 13.3307Epoch [17/50], Loss: 13.3035Epoch [18/50], Loss: 13.2787Epoch [19/50], Loss: 13.2563Epoch [20/50], Loss: 13.2359Epoch [21/50], Loss: 13.2171Epoch [22/50], Loss: 13.1989Epoch [23/50], Loss: 13.1815Epoch [24/50], Loss: 13.1642Epoch [25/50], Loss: 13.1481Epoch [26/50], Loss: 13.1318Epoch [27/50], Loss: 13.1163Epoch [28/50], Loss: 13.1005Epoch [29/50], Loss: 13.0860Epoch [30/50], Loss: 13.0709Epoch [31/50], Loss: 13.0573Epoch [32/50], Loss: 13.0437Epoch [33/50], Loss: 13.0303Epoch [34/50], Loss: 13.0166Epoch [35/50], Loss: 13.0051Epoch [36/50], Loss: 12.9937Epoch [37/50], Loss: 12.9869Epoch [38/50], Loss: 12.9780Epoch [39/50], Loss: 12.9753Epoch [40/50], Loss: 12.9775Epoch [41/50], Loss: 12.9823Epoch [42/50], Loss: 12.9807Epoch [43/50], Loss: 12.9672Epoch [44/50], Loss: 12.9525Epoch [45/50], Loss: 12.9430Epoch [46/50], Loss: 12.9406Epoch [47/50], Loss: 12.9375Epoch [48/50], Loss: 12.9377Epoch [49/50], Loss: 12.9321Epoch [50/50], Loss: 12.9170
-GFM: 2
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.32s
-return df: 0.48s
-Epoch [1/50], Loss: 29.7445Epoch [2/50], Loss: 20.4509Epoch [3/50], Loss: 15.2255Epoch [4/50], Loss: 14.5867Epoch [5/50], Loss: 14.3437Epoch [6/50], Loss: 14.2119Epoch [7/50], Loss: 14.0972Epoch [8/50], Loss: 13.9757Epoch [9/50], Loss: 13.8690Epoch [10/50], Loss: 13.7870Epoch [11/50], Loss: 13.7289Epoch [12/50], Loss: 13.6854Epoch [13/50], Loss: 13.6472Epoch [14/50], Loss: 13.6090Epoch [15/50], Loss: 13.5715Epoch [16/50], Loss: 13.5387Epoch [17/50], Loss: 13.5116Epoch [18/50], Loss: 13.4886Epoch [19/50], Loss: 13.4685Epoch [20/50], Loss: 13.4502Epoch [21/50], Loss: 13.4328Epoch [22/50], Loss: 13.4161Epoch [23/50], Loss: 13.3995Epoch [24/50], Loss: 13.3835Epoch [25/50], Loss: 13.3679Epoch [26/50], Loss: 13.3525Epoch [27/50], Loss: 13.3372Epoch [28/50], Loss: 13.3217Epoch [29/50], Loss: 13.3060Epoch [30/50], Loss: 13.2901Epoch [31/50], Loss: 13.2743Epoch [32/50], Loss: 13.2579Epoch [33/50], Loss: 13.2417Epoch [34/50], Loss: 13.2266Epoch [35/50], Loss: 13.2118Epoch [36/50], Loss: 13.1991Epoch [37/50], Loss: 13.1895Epoch [38/50], Loss: 13.1793Epoch [39/50], Loss: 13.1699Epoch [40/50], Loss: 13.1733Epoch [41/50], Loss: 13.1640Epoch [42/50], Loss: 13.1523Epoch [43/50], Loss: 13.1457Epoch [44/50], Loss: 13.1409Epoch [45/50], Loss: 13.1350Epoch [46/50], Loss: 13.1328Epoch [47/50], Loss: 13.1323Epoch [48/50], Loss: 13.1290Epoch [49/50], Loss: 13.1286Epoch [50/50], Loss: 13.1370
-GFM: 3
-cells:2122 genes:8000
-load data: 0.03s
-calculate: 0.32s
-return df: 0.48s
-Epoch [1/50], Loss: 30.1364Epoch [2/50], Loss: 20.6406Epoch [3/50], Loss: 15.3261Epoch [4/50], Loss: 14.7860Epoch [5/50], Loss: 14.6183Epoch [6/50], Loss: 14.5242Epoch [7/50], Loss: 14.4488Epoch [8/50], Loss: 14.3522Epoch [9/50], Loss: 14.2132Epoch [10/50], Loss: 14.0738Epoch [11/50], Loss: 13.9852Epoch [12/50], Loss: 13.9311Epoch [13/50], Loss: 13.8915Epoch [14/50], Loss: 13.8571Epoch [15/50], Loss: 13.8245Epoch [16/50], Loss: 13.7927Epoch [17/50], Loss: 13.7621Epoch [18/50], Loss: 13.7334Epoch [19/50], Loss: 13.7071Epoch [20/50], Loss: 13.6821Epoch [21/50], Loss: 13.6592Epoch [22/50], Loss: 13.6380Epoch [23/50], Loss: 13.6190Epoch [24/50], Loss: 13.6011Epoch [25/50], Loss: 13.5850Epoch [26/50], Loss: 13.5698Epoch [27/50], Loss: 13.5556Epoch [28/50], Loss: 13.5407Epoch [29/50], Loss: 13.5271Epoch [30/50], Loss: 13.5137Epoch [31/50], Loss: 13.5008Epoch [32/50], Loss: 13.4877Epoch [33/50], Loss: 13.4756Epoch [34/50], Loss: 13.4631Epoch [35/50], Loss: 13.4504Epoch [36/50], Loss: 13.4380Epoch [37/50], Loss: 13.4257Epoch [38/50], Loss: 13.4135Epoch [39/50], Loss: 13.4033Epoch [40/50], Loss: 13.3931Epoch [41/50], Loss: 13.3844Epoch [42/50], Loss: 13.3762Epoch [43/50], Loss: 13.3708Epoch [44/50], Loss: 13.3722Epoch [45/50], Loss: 13.3762Epoch [46/50], Loss: 13.3843Epoch [47/50], Loss: 13.3829Epoch [48/50], Loss: 13.3657Epoch [49/50], Loss: 13.3475Epoch [50/50], Loss: 13.3394
-GFM: 4
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.34s
-return df: 0.50s
-Epoch [1/50], Loss: 29.5274Epoch [2/50], Loss: 20.1362Epoch [3/50], Loss: 14.8136Epoch [4/50], Loss: 14.2729Epoch [5/50], Loss: 14.0893Epoch [6/50], Loss: 13.9717Epoch [7/50], Loss: 13.8618Epoch [8/50], Loss: 13.7511Epoch [9/50], Loss: 13.6513Epoch [10/50], Loss: 13.5622Epoch [11/50], Loss: 13.4907Epoch [12/50], Loss: 13.4351Epoch [13/50], Loss: 13.3878Epoch [14/50], Loss: 13.3498Epoch [15/50], Loss: 13.3203Epoch [16/50], Loss: 13.2966Epoch [17/50], Loss: 13.2766Epoch [18/50], Loss: 13.2583Epoch [19/50], Loss: 13.2409Epoch [20/50], Loss: 13.2236Epoch [21/50], Loss: 13.2061Epoch [22/50], Loss: 13.1870Epoch [23/50], Loss: 13.1687Epoch [24/50], Loss: 13.1489Epoch [25/50], Loss: 13.1303Epoch [26/50], Loss: 13.1126Epoch [27/50], Loss: 13.0968Epoch [28/50], Loss: 13.0811Epoch [29/50], Loss: 13.0677Epoch [30/50], Loss: 13.0546Epoch [31/50], Loss: 13.0433Epoch [32/50], Loss: 13.0307Epoch [33/50], Loss: 13.0221Epoch [34/50], Loss: 13.0150Epoch [35/50], Loss: 13.0066Epoch [36/50], Loss: 12.9971Epoch [37/50], Loss: 12.9905Epoch [38/50], Loss: 12.9841Epoch [39/50], Loss: 12.9756Epoch [40/50], Loss: 12.9652Epoch [41/50], Loss: 12.9562Epoch [42/50], Loss: 12.9518Epoch [43/50], Loss: 12.9492Epoch [44/50], Loss: 12.9458Epoch [45/50], Loss: 12.9431Epoch [46/50], Loss: 12.9446Epoch [47/50], Loss: 12.9423Epoch [48/50], Loss: 12.9292Epoch [49/50], Loss: 12.9086Epoch [50/50], Loss: 12.8908
-GFM: 5
-cells:2122 genes:8000
-load data: 0.03s
-calculate: 0.35s
-return df: 0.50s
-Epoch [1/50], Loss: 29.8673Epoch [2/50], Loss: 20.1128Epoch [3/50], Loss: 15.1162Epoch [4/50], Loss: 14.6280Epoch [5/50], Loss: 14.4624Epoch [6/50], Loss: 14.3542Epoch [7/50], Loss: 14.2525Epoch [8/50], Loss: 14.1396Epoch [9/50], Loss: 14.0472Epoch [10/50], Loss: 13.9641Epoch [11/50], Loss: 13.8788Epoch [12/50], Loss: 13.8089Epoch [13/50], Loss: 13.7591Epoch [14/50], Loss: 13.7198Epoch [15/50], Loss: 13.6854Epoch [16/50], Loss: 13.6545Epoch [17/50], Loss: 13.6273Epoch [18/50], Loss: 13.6031Epoch [19/50], Loss: 13.5811Epoch [20/50], Loss: 13.5613Epoch [21/50], Loss: 13.5432Epoch [22/50], Loss: 13.5262Epoch [23/50], Loss: 13.5105Epoch [24/50], Loss: 13.4956Epoch [25/50], Loss: 13.4821Epoch [26/50], Loss: 13.4686Epoch [27/50], Loss: 13.4557Epoch [28/50], Loss: 13.4425Epoch [29/50], Loss: 13.4309Epoch [30/50], Loss: 13.4189Epoch [31/50], Loss: 13.4068Epoch [32/50], Loss: 13.3947Epoch [33/50], Loss: 13.3828Epoch [34/50], Loss: 13.3705Epoch [35/50], Loss: 13.3582Epoch [36/50], Loss: 13.3452Epoch [37/50], Loss: 13.3324Epoch [38/50], Loss: 13.3197Epoch [39/50], Loss: 13.3069Epoch [40/50], Loss: 13.2957Epoch [41/50], Loss: 13.2896Epoch [42/50], Loss: 13.2874Epoch [43/50], Loss: 13.2868Epoch [44/50], Loss: 13.2773Epoch [45/50], Loss: 13.2599Epoch [46/50], Loss: 13.2469Epoch [47/50], Loss: 13.2410Epoch [48/50], Loss: 13.2416Epoch [49/50], Loss: 13.2448Epoch [50/50], Loss: 13.2512
-
-Round 0
-dbname:muraro	round:4444	alpha:0	beta:1	acc: 0.9147 	ari: 0.90076 	nmi: 0.85688
-dbname:muraro	round:4444	alpha:0.001	beta:1	acc: 0.91329 	ari: 0.88866 	nmi: 0.84804
-dbname:muraro	round:4444	alpha:0.01	beta:1	acc: 0.92224 	ari: 0.9011 	nmi: 0.86559
-dbname:muraro	round:4444	alpha:0.1	beta:1	acc: 0.89114 	ari: 0.85746 	nmi: 0.83346
-dbname:muraro	round:4444	alpha:1	beta:1	acc: 0.8902 	ari: 0.85631 	nmi: 0.83277
-dbname:muraro	round:4444	alpha:1	beta:0.1	acc: 0.8902 	ari: 0.85631 	nmi: 0.83277
-dbname:muraro	round:4444	alpha:1	beta:0.01	acc: 0.8902 	ari: 0.85631 	nmi: 0.83277
-dbname:muraro	round:4444	alpha:1	beta:0.001	acc: 0.8902 	ari: 0.85631 	nmi: 0.83277
-dbname:muraro	round:4444	alpha:1	beta:0	acc: 0.8902 	ari: 0.85631 	nmi: 0.83277
-
-Round 1
-dbname:muraro	round:4444	alpha:0	beta:1	acc: 0.9147 	ari: 0.90076 	nmi: 0.85688
-dbname:muraro	round:4444	alpha:0.001	beta:1	acc: 0.91329 	ari: 0.88866 	nmi: 0.84804
-dbname:muraro	round:4444	alpha:0.01	beta:1	acc: 0.92224 	ari: 0.9011 	nmi: 0.86559
-dbname:muraro	round:4444	alpha:0.1	beta:1	acc: 0.89114 	ari: 0.85746 	nmi: 0.83346
-dbname:muraro	round:4444	alpha:1	beta:1	acc: 0.8902 	ari: 0.85631 	nmi: 0.83277
-dbname:muraro	round:4444	alpha:1	beta:0.1	acc: 0.8902 	ari: 0.85631 	nmi: 0.83277
-dbname:muraro	round:4444	alpha:1	beta:0.01	acc: 0.8902 	ari: 0.85631 	nmi: 0.83277
-dbname:muraro	round:4444	alpha:1	beta:0.001	acc: 0.8902 	ari: 0.85631 	nmi: 0.83277
-dbname:muraro	round:4444	alpha:1	beta:0	acc: 0.8902 	ari: 0.85631 	nmi: 0.83277
-
-Round 2
-dbname:muraro	round:4444	alpha:0	beta:1	acc: 0.9147 	ari: 0.90076 	nmi: 0.85688
-dbname:muraro	round:4444	alpha:0.001	beta:1	acc: 0.91376 	ari: 0.89037 	nmi: 0.85007
-dbname:muraro	round:4444	alpha:0.01	beta:1	acc: 0.92413 	ari: 0.90407 	nmi: 0.86851
-dbname:muraro	round:4444	alpha:0.1	beta:1	acc: 0.89303 	ari: 0.85978 	nmi: 0.83486
-dbname:muraro	round:4444	alpha:1	beta:1	acc: 0.89114 	ari: 0.85746 	nmi: 0.83346
-dbname:muraro	round:4444	alpha:1	beta:0.1	acc: 0.89114 	ari: 0.85746 	nmi: 0.83346
-dbname:muraro	round:4444	alpha:1	beta:0.01	acc: 0.89114 	ari: 0.85746 	nmi: 0.83346
-dbname:muraro	round:4444	alpha:1	beta:0.001	acc: 0.89114 	ari: 0.85746 	nmi: 0.83346
-dbname:muraro	round:4444	alpha:1	beta:0	acc: 0.89114 	ari: 0.85746 	nmi: 0.83346
-
-Seed: 5555
-
-GFM: 1
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.35s
-return df: 0.50s
-Epoch [1/50], Loss: 29.4153Epoch [2/50], Loss: 19.6494Epoch [3/50], Loss: 14.8426Epoch [4/50], Loss: 14.2968Epoch [5/50], Loss: 14.1121Epoch [6/50], Loss: 14.0095Epoch [7/50], Loss: 13.9210Epoch [8/50], Loss: 13.8094Epoch [9/50], Loss: 13.6828Epoch [10/50], Loss: 13.5746Epoch [11/50], Loss: 13.4977Epoch [12/50], Loss: 13.4416Epoch [13/50], Loss: 13.3954Epoch [14/50], Loss: 13.3550Epoch [15/50], Loss: 13.3215Epoch [16/50], Loss: 13.2939Epoch [17/50], Loss: 13.2702Epoch [18/50], Loss: 13.2486Epoch [19/50], Loss: 13.2286Epoch [20/50], Loss: 13.2096Epoch [21/50], Loss: 13.1913Epoch [22/50], Loss: 13.1733Epoch [23/50], Loss: 13.1560Epoch [24/50], Loss: 13.1393Epoch [25/50], Loss: 13.1239Epoch [26/50], Loss: 13.1088Epoch [27/50], Loss: 13.0950Epoch [28/50], Loss: 13.0827Epoch [29/50], Loss: 13.0710Epoch [30/50], Loss: 13.0600Epoch [31/50], Loss: 13.0499Epoch [32/50], Loss: 13.0398Epoch [33/50], Loss: 13.0307Epoch [34/50], Loss: 13.0219Epoch [35/50], Loss: 13.0155Epoch [36/50], Loss: 13.0084Epoch [37/50], Loss: 13.0028Epoch [38/50], Loss: 12.9955Epoch [39/50], Loss: 12.9912Epoch [40/50], Loss: 12.9936Epoch [41/50], Loss: 12.9949Epoch [42/50], Loss: 12.9834Epoch [43/50], Loss: 12.9701Epoch [44/50], Loss: 12.9596Epoch [45/50], Loss: 12.9584Epoch [46/50], Loss: 12.9614Epoch [47/50], Loss: 12.9646Epoch [48/50], Loss: 12.9586Epoch [49/50], Loss: 12.9519Epoch [50/50], Loss: 12.9445
-GFM: 2
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.33s
-return df: 0.50s
-Epoch [1/50], Loss: 29.8034Epoch [2/50], Loss: 20.9158Epoch [3/50], Loss: 15.3232Epoch [4/50], Loss: 14.6162Epoch [5/50], Loss: 14.3863Epoch [6/50], Loss: 14.2706Epoch [7/50], Loss: 14.1822Epoch [8/50], Loss: 14.0823Epoch [9/50], Loss: 13.9643Epoch [10/50], Loss: 13.8395Epoch [11/50], Loss: 13.7486Epoch [12/50], Loss: 13.6898Epoch [13/50], Loss: 13.6443Epoch [14/50], Loss: 13.6043Epoch [15/50], Loss: 13.5706Epoch [16/50], Loss: 13.5428Epoch [17/50], Loss: 13.5195Epoch [18/50], Loss: 13.4987Epoch [19/50], Loss: 13.4795Epoch [20/50], Loss: 13.4615Epoch [21/50], Loss: 13.4443Epoch [22/50], Loss: 13.4276Epoch [23/50], Loss: 13.4114Epoch [24/50], Loss: 13.3956Epoch [25/50], Loss: 13.3806Epoch [26/50], Loss: 13.3657Epoch [27/50], Loss: 13.3521Epoch [28/50], Loss: 13.3382Epoch [29/50], Loss: 13.3253Epoch [30/50], Loss: 13.3123Epoch [31/50], Loss: 13.3001Epoch [32/50], Loss: 13.2883Epoch [33/50], Loss: 13.2768Epoch [34/50], Loss: 13.2646Epoch [35/50], Loss: 13.2530Epoch [36/50], Loss: 13.2404Epoch [37/50], Loss: 13.2280Epoch [38/50], Loss: 13.2160Epoch [39/50], Loss: 13.2036Epoch [40/50], Loss: 13.1920Epoch [41/50], Loss: 13.1810Epoch [42/50], Loss: 13.1749Epoch [43/50], Loss: 13.1715Epoch [44/50], Loss: 13.1723Epoch [45/50], Loss: 13.1749Epoch [46/50], Loss: 13.1638Epoch [47/50], Loss: 13.1465Epoch [48/50], Loss: 13.1337Epoch [49/50], Loss: 13.1230Epoch [50/50], Loss: 13.1165
-GFM: 3
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.34s
-return df: 0.50s
-Epoch [1/50], Loss: 29.9746Epoch [2/50], Loss: 19.9320Epoch [3/50], Loss: 15.2162Epoch [4/50], Loss: 14.7597Epoch [5/50], Loss: 14.6104Epoch [6/50], Loss: 14.5191Epoch [7/50], Loss: 14.4441Epoch [8/50], Loss: 14.3535Epoch [9/50], Loss: 14.2273Epoch [10/50], Loss: 14.0946Epoch [11/50], Loss: 13.9988Epoch [12/50], Loss: 13.9369Epoch [13/50], Loss: 13.8932Epoch [14/50], Loss: 13.8581Epoch [15/50], Loss: 13.8273Epoch [16/50], Loss: 13.7997Epoch [17/50], Loss: 13.7745Epoch [18/50], Loss: 13.7511Epoch [19/50], Loss: 13.7292Epoch [20/50], Loss: 13.7088Epoch [21/50], Loss: 13.6892Epoch [22/50], Loss: 13.6708Epoch [23/50], Loss: 13.6524Epoch [24/50], Loss: 13.6350Epoch [25/50], Loss: 13.6173Epoch [26/50], Loss: 13.6008Epoch [27/50], Loss: 13.5843Epoch [28/50], Loss: 13.5691Epoch [29/50], Loss: 13.5546Epoch [30/50], Loss: 13.5403Epoch [31/50], Loss: 13.5265Epoch [32/50], Loss: 13.5136Epoch [33/50], Loss: 13.4992Epoch [34/50], Loss: 13.4874Epoch [35/50], Loss: 13.4696Epoch [36/50], Loss: 13.4553Epoch [37/50], Loss: 13.4428Epoch [38/50], Loss: 13.4330Epoch [39/50], Loss: 13.4253Epoch [40/50], Loss: 13.4246Epoch [41/50], Loss: 13.4226Epoch [42/50], Loss: 13.4122Epoch [43/50], Loss: 13.3904Epoch [44/50], Loss: 13.3727Epoch [45/50], Loss: 13.3578Epoch [46/50], Loss: 13.3457Epoch [47/50], Loss: 13.3345Epoch [48/50], Loss: 13.3266Epoch [49/50], Loss: 13.3229Epoch [50/50], Loss: 13.3263
-GFM: 4
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.34s
-return df: 0.50s
-Epoch [1/50], Loss: 29.5039Epoch [2/50], Loss: 20.0007Epoch [3/50], Loss: 14.8162Epoch [4/50], Loss: 14.2726Epoch [5/50], Loss: 14.0752Epoch [6/50], Loss: 13.9364Epoch [7/50], Loss: 13.8190Epoch [8/50], Loss: 13.7130Epoch [9/50], Loss: 13.6139Epoch [10/50], Loss: 13.5356Epoch [11/50], Loss: 13.4800Epoch [12/50], Loss: 13.4350Epoch [13/50], Loss: 13.3943Epoch [14/50], Loss: 13.3571Epoch [15/50], Loss: 13.3245Epoch [16/50], Loss: 13.2962Epoch [17/50], Loss: 13.2710Epoch [18/50], Loss: 13.2483Epoch [19/50], Loss: 13.2263Epoch [20/50], Loss: 13.2044Epoch [21/50], Loss: 13.1827Epoch [22/50], Loss: 13.1617Epoch [23/50], Loss: 13.1414Epoch [24/50], Loss: 13.1224Epoch [25/50], Loss: 13.1049Epoch [26/50], Loss: 13.0886Epoch [27/50], Loss: 13.0731Epoch [28/50], Loss: 13.0589Epoch [29/50], Loss: 13.0457Epoch [30/50], Loss: 13.0333Epoch [31/50], Loss: 13.0232Epoch [32/50], Loss: 13.0128Epoch [33/50], Loss: 13.0021Epoch [34/50], Loss: 12.9911Epoch [35/50], Loss: 12.9801Epoch [36/50], Loss: 12.9700Epoch [37/50], Loss: 12.9589Epoch [38/50], Loss: 12.9523Epoch [39/50], Loss: 12.9466Epoch [40/50], Loss: 12.9406Epoch [41/50], Loss: 12.9378Epoch [42/50], Loss: 12.9412Epoch [43/50], Loss: 12.9445Epoch [44/50], Loss: 12.9381Epoch [45/50], Loss: 12.9349Epoch [46/50], Loss: 12.9359Epoch [47/50], Loss: 12.9391Epoch [48/50], Loss: 12.9456Epoch [49/50], Loss: 12.9563Epoch [50/50], Loss: 12.9664
-GFM: 5
-cells:2122 genes:8000
-load data: 0.03s
-calculate: 0.33s
-return df: 0.49s
-Epoch [1/50], Loss: 29.9568Epoch [2/50], Loss: 20.8620Epoch [3/50], Loss: 15.1706Epoch [4/50], Loss: 14.6226Epoch [5/50], Loss: 14.4355Epoch [6/50], Loss: 14.3107Epoch [7/50], Loss: 14.2004Epoch [8/50], Loss: 14.1111Epoch [9/50], Loss: 14.0409Epoch [10/50], Loss: 13.9646Epoch [11/50], Loss: 13.8773Epoch [12/50], Loss: 13.8038Epoch [13/50], Loss: 13.7457Epoch [14/50], Loss: 13.6973Epoch [15/50], Loss: 13.6570Epoch [16/50], Loss: 13.6245Epoch [17/50], Loss: 13.5969Epoch [18/50], Loss: 13.5725Epoch [19/50], Loss: 13.5504Epoch [20/50], Loss: 13.5296Epoch [21/50], Loss: 13.5099Epoch [22/50], Loss: 13.4912Epoch [23/50], Loss: 13.4731Epoch [24/50], Loss: 13.4552Epoch [25/50], Loss: 13.4386Epoch [26/50], Loss: 13.4216Epoch [27/50], Loss: 13.4057Epoch [28/50], Loss: 13.3899Epoch [29/50], Loss: 13.3748Epoch [30/50], Loss: 13.3595Epoch [31/50], Loss: 13.3451Epoch [32/50], Loss: 13.3303Epoch [33/50], Loss: 13.3168Epoch [34/50], Loss: 13.3023Epoch [35/50], Loss: 13.2885Epoch [36/50], Loss: 13.2743Epoch [37/50], Loss: 13.2619Epoch [38/50], Loss: 13.2536Epoch [39/50], Loss: 13.2523Epoch [40/50], Loss: 13.2556Epoch [41/50], Loss: 13.2537Epoch [42/50], Loss: 13.2414Epoch [43/50], Loss: 13.2298Epoch [44/50], Loss: 13.2236Epoch [45/50], Loss: 13.2166Epoch [46/50], Loss: 13.2097Epoch [47/50], Loss: 13.1999Epoch [48/50], Loss: 13.1886Epoch [49/50], Loss: 13.1805Epoch [50/50], Loss: 13.1679
-
-Round 0
-dbname:muraro	round:5555	alpha:0	beta:1	acc: 0.91376 	ari: 0.90277 	nmi: 0.8618
-dbname:muraro	round:5555	alpha:0.001	beta:1	acc: 0.91894 	ari: 0.91058 	nmi: 0.86996
-dbname:muraro	round:5555	alpha:0.01	beta:1	acc: 0.79312 	ari: 0.66173 	nmi: 0.77551
-dbname:muraro	round:5555	alpha:0.1	beta:1	acc: 0.7705 	ari: 0.63132 	nmi: 0.75832
-dbname:muraro	round:5555	alpha:1	beta:1	acc: 0.76956 	ari: 0.62968 	nmi: 0.75715
-dbname:muraro	round:5555	alpha:1	beta:0.1	acc: 0.76956 	ari: 0.62968 	nmi: 0.75715
-dbname:muraro	round:5555	alpha:1	beta:0.01	acc: 0.76956 	ari: 0.62968 	nmi: 0.75715
-dbname:muraro	round:5555	alpha:1	beta:0.001	acc: 0.76956 	ari: 0.62968 	nmi: 0.75715
-dbname:muraro	round:5555	alpha:1	beta:0	acc: 0.76956 	ari: 0.62968 	nmi: 0.75715
-
-Round 1
-dbname:muraro	round:5555	alpha:0	beta:1	acc: 0.91376 	ari: 0.90277 	nmi: 0.8618
-dbname:muraro	round:5555	alpha:0.001	beta:1	acc: 0.91894 	ari: 0.91058 	nmi: 0.86996
-dbname:muraro	round:5555	alpha:0.01	beta:1	acc: 0.79312 	ari: 0.66173 	nmi: 0.77551
-dbname:muraro	round:5555	alpha:0.1	beta:1	acc: 0.7705 	ari: 0.63132 	nmi: 0.75832
-dbname:muraro	round:5555	alpha:1	beta:1	acc: 0.76956 	ari: 0.62968 	nmi: 0.75715
-dbname:muraro	round:5555	alpha:1	beta:0.1	acc: 0.76956 	ari: 0.62968 	nmi: 0.75715
-dbname:muraro	round:5555	alpha:1	beta:0.01	acc: 0.76956 	ari: 0.62968 	nmi: 0.75715
-dbname:muraro	round:5555	alpha:1	beta:0.001	acc: 0.76956 	ari: 0.62968 	nmi: 0.75715
-dbname:muraro	round:5555	alpha:1	beta:0	acc: 0.76956 	ari: 0.62968 	nmi: 0.75715
-
-Round 2
-dbname:muraro	round:5555	alpha:0	beta:1	acc: 0.91376 	ari: 0.90277 	nmi: 0.8618
-dbname:muraro	round:5555	alpha:0.001	beta:1	acc: 0.91894 	ari: 0.91058 	nmi: 0.86996
-dbname:muraro	round:5555	alpha:0.01	beta:1	acc: 0.79312 	ari: 0.66173 	nmi: 0.77551
-dbname:muraro	round:5555	alpha:0.1	beta:1	acc: 0.77191 	ari: 0.63381 	nmi: 0.76014
-dbname:muraro	round:5555	alpha:1	beta:1	acc: 0.77003 	ari: 0.6305 	nmi: 0.75773
-dbname:muraro	round:5555	alpha:1	beta:0.1	acc: 0.77003 	ari: 0.6305 	nmi: 0.75773
-dbname:muraro	round:5555	alpha:1	beta:0.01	acc: 0.76956 	ari: 0.62968 	nmi: 0.75715
-dbname:muraro	round:5555	alpha:1	beta:0.001	acc: 0.76956 	ari: 0.62968 	nmi: 0.75715
-dbname:muraro	round:5555	alpha:1	beta:0	acc: 0.76956 	ari: 0.62968 	nmi: 0.75715
-
-Seed: 6666
-
-GFM: 1
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.34s
-return df: 0.49s
-Epoch [1/50], Loss: 29.3826Epoch [2/50], Loss: infEpoch [3/50], Loss: infEpoch [4/50], Loss: infEpoch [5/50], Loss: infEpoch [6/50], Loss: infEpoch [7/50], Loss: infEpoch [8/50], Loss: infEpoch [9/50], Loss: infEpoch [10/50], Loss: infEpoch [11/50], Loss: infEpoch [12/50], Loss: infEpoch [13/50], Loss: infEpoch [14/50], Loss: infEpoch [15/50], Loss: infEpoch [16/50], Loss: infEpoch [17/50], Loss: infEpoch [18/50], Loss: infEpoch [19/50], Loss: infEpoch [20/50], Loss: infEpoch [21/50], Loss: infEpoch [22/50], Loss: infEpoch [23/50], Loss: infEpoch [24/50], Loss: infEpoch [25/50], Loss: infEpoch [26/50], Loss: infEpoch [27/50], Loss: infEpoch [28/50], Loss: infEpoch [29/50], Loss: infEpoch [30/50], Loss: infEpoch [31/50], Loss: infEpoch [32/50], Loss: infEpoch [33/50], Loss: infEpoch [34/50], Loss: infEpoch [35/50], Loss: infEpoch [36/50], Loss: infEpoch [37/50], Loss: infEpoch [38/50], Loss: infEpoch [39/50], Loss: infEpoch [40/50], Loss: infEpoch [41/50], Loss: infEpoch [42/50], Loss: infEpoch [43/50], Loss: infEpoch [44/50], Loss: infEpoch [45/50], Loss: infEpoch [46/50], Loss: infEpoch [47/50], Loss: infEpoch [48/50], Loss: infEpoch [49/50], Loss: infEpoch [50/50], Loss: inf
-GFM: 2
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.34s
-return df: 0.50s
-Epoch [1/50], Loss: 29.7900Epoch [2/50], Loss: 20.8911Epoch [3/50], Loss: 15.4966Epoch [4/50], Loss: 14.7730Epoch [5/50], Loss: 14.4286Epoch [6/50], Loss: 14.2851Epoch [7/50], Loss: 14.2092Epoch [8/50], Loss: 14.1440Epoch [9/50], Loss: 14.0618Epoch [10/50], Loss: 13.9544Epoch [11/50], Loss: 13.8499Epoch [12/50], Loss: 13.7701Epoch [13/50], Loss: 13.7148Epoch [14/50], Loss: 13.6760Epoch [15/50], Loss: 13.6448Epoch [16/50], Loss: 13.6156Epoch [17/50], Loss: 13.5858Epoch [18/50], Loss: 13.5548Epoch [19/50], Loss: 13.5260Epoch [20/50], Loss: 13.5010Epoch [21/50], Loss: 13.4788Epoch [22/50], Loss: 13.4589Epoch [23/50], Loss: 13.4409Epoch [24/50], Loss: 13.4242Epoch [25/50], Loss: 13.4089Epoch [26/50], Loss: 13.3945Epoch [27/50], Loss: 13.3812Epoch [28/50], Loss: 13.3681Epoch [29/50], Loss: 13.3567Epoch [30/50], Loss: 13.3444Epoch [31/50], Loss: 13.3334Epoch [32/50], Loss: 13.3212Epoch [33/50], Loss: 13.3100Epoch [34/50], Loss: 13.2985Epoch [35/50], Loss: 13.2872Epoch [36/50], Loss: 13.2757Epoch [37/50], Loss: 13.2649Epoch [38/50], Loss: 13.2545Epoch [39/50], Loss: 13.2437Epoch [40/50], Loss: 13.2350Epoch [41/50], Loss: 13.2316Epoch [42/50], Loss: 13.2320Epoch [43/50], Loss: 13.2259Epoch [44/50], Loss: 13.2168Epoch [45/50], Loss: 13.2120Epoch [46/50], Loss: 13.2099Epoch [47/50], Loss: 13.2088Epoch [48/50], Loss: 13.2073Epoch [49/50], Loss: 13.2087Epoch [50/50], Loss: 13.2045
-GFM: 3
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.34s
-return df: 0.50s
-Epoch [1/50], Loss: 29.9114Epoch [2/50], Loss: 19.7865Epoch [3/50], Loss: 15.2815Epoch [4/50], Loss: 14.7661Epoch [5/50], Loss: 14.5836Epoch [6/50], Loss: 14.4660Epoch [7/50], Loss: 14.3565Epoch [8/50], Loss: 14.2372Epoch [9/50], Loss: 14.1206Epoch [10/50], Loss: 14.0211Epoch [11/50], Loss: 13.9482Epoch [12/50], Loss: 13.8925Epoch [13/50], Loss: 13.8475Epoch [14/50], Loss: 13.8105Epoch [15/50], Loss: 13.7805Epoch [16/50], Loss: 13.7555Epoch [17/50], Loss: 13.7335Epoch [18/50], Loss: 13.7132Epoch [19/50], Loss: 13.6938Epoch [20/50], Loss: 13.6748Epoch [21/50], Loss: 13.6556Epoch [22/50], Loss: 13.6364Epoch [23/50], Loss: 13.6180Epoch [24/50], Loss: 13.6000Epoch [25/50], Loss: 13.5823Epoch [26/50], Loss: 13.5651Epoch [27/50], Loss: 13.5494Epoch [28/50], Loss: 13.5335Epoch [29/50], Loss: 13.5188Epoch [30/50], Loss: 13.5041Epoch [31/50], Loss: 13.4906Epoch [32/50], Loss: 13.4772Epoch [33/50], Loss: 13.4665Epoch [34/50], Loss: 13.4544Epoch [35/50], Loss: 13.4443Epoch [36/50], Loss: 13.4344Epoch [37/50], Loss: 13.4277Epoch [38/50], Loss: 13.4187Epoch [39/50], Loss: 13.4091Epoch [40/50], Loss: 13.3995Epoch [41/50], Loss: 13.3898Epoch [42/50], Loss: 13.3773Epoch [43/50], Loss: 13.3640Epoch [44/50], Loss: 13.3536Epoch [45/50], Loss: 13.3512Epoch [46/50], Loss: 13.3528Epoch [47/50], Loss: 13.3583Epoch [48/50], Loss: 13.3665Epoch [49/50], Loss: 13.3638Epoch [50/50], Loss: 13.3554
-GFM: 4
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.35s
-return df: 0.51s
-Epoch [1/50], Loss: 29.5689Epoch [2/50], Loss: 20.2707Epoch [3/50], Loss: 14.9347Epoch [4/50], Loss: 14.3235Epoch [5/50], Loss: 14.1022Epoch [6/50], Loss: 13.9675Epoch [7/50], Loss: 13.8410Epoch [8/50], Loss: 13.7200Epoch [9/50], Loss: 13.6189Epoch [10/50], Loss: 13.5439Epoch [11/50], Loss: 13.4919Epoch [12/50], Loss: 13.4533Epoch [13/50], Loss: 13.4197Epoch [14/50], Loss: 13.3860Epoch [15/50], Loss: 13.3514Epoch [16/50], Loss: 13.3191Epoch [17/50], Loss: 13.2909Epoch [18/50], Loss: 13.2663Epoch [19/50], Loss: 13.2435Epoch [20/50], Loss: 13.2215Epoch [21/50], Loss: 13.1998Epoch [22/50], Loss: 13.1781Epoch [23/50], Loss: 13.1573Epoch [24/50], Loss: 13.1380Epoch [25/50], Loss: 13.1198Epoch [26/50], Loss: 13.1024Epoch [27/50], Loss: 13.0857Epoch [28/50], Loss: 13.0696Epoch [29/50], Loss: 13.0538Epoch [30/50], Loss: 13.0385Epoch [31/50], Loss: 13.0233Epoch [32/50], Loss: 13.0090Epoch [33/50], Loss: 12.9951Epoch [34/50], Loss: 12.9818Epoch [35/50], Loss: 12.9696Epoch [36/50], Loss: 12.9587Epoch [37/50], Loss: 12.9493Epoch [38/50], Loss: 12.9428Epoch [39/50], Loss: 12.9402Epoch [40/50], Loss: 12.9388Epoch [41/50], Loss: 12.9330Epoch [42/50], Loss: 12.9223Epoch [43/50], Loss: 12.9175Epoch [44/50], Loss: 12.9215Epoch [45/50], Loss: 12.9339Epoch [46/50], Loss: 12.9432Epoch [47/50], Loss: 12.9449Epoch [48/50], Loss: 12.9419Epoch [49/50], Loss: 12.9231Epoch [50/50], Loss: 12.9061
-GFM: 5
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.34s
-return df: 0.50s
-Epoch [1/50], Loss: 29.7825Epoch [2/50], Loss: 19.8080Epoch [3/50], Loss: 15.0702Epoch [4/50], Loss: 14.5913Epoch [5/50], Loss: 14.4298Epoch [6/50], Loss: 14.3231Epoch [7/50], Loss: 14.2134Epoch [8/50], Loss: 14.0856Epoch [9/50], Loss: 13.9713Epoch [10/50], Loss: 13.8842Epoch [11/50], Loss: 13.8206Epoch [12/50], Loss: 13.7725Epoch [13/50], Loss: 13.7320Epoch [14/50], Loss: 13.6951Epoch [15/50], Loss: 13.6617Epoch [16/50], Loss: 13.6321Epoch [17/50], Loss: 13.6057Epoch [18/50], Loss: 13.5813Epoch [19/50], Loss: 13.5582Epoch [20/50], Loss: 13.5356Epoch [21/50], Loss: 13.5137Epoch [22/50], Loss: 13.4924Epoch [23/50], Loss: 13.4719Epoch [24/50], Loss: 13.4524Epoch [25/50], Loss: 13.4344Epoch [26/50], Loss: 13.4158Epoch [27/50], Loss: 13.3991Epoch [28/50], Loss: 13.3823Epoch [29/50], Loss: 13.3681Epoch [30/50], Loss: 13.3584Epoch [31/50], Loss: 13.3423Epoch [32/50], Loss: 13.3305Epoch [33/50], Loss: 13.3172Epoch [34/50], Loss: 13.3014Epoch [35/50], Loss: 13.2880Epoch [36/50], Loss: 13.2717Epoch [37/50], Loss: 13.2614Epoch [38/50], Loss: 13.2547Epoch [39/50], Loss: 13.2452Epoch [40/50], Loss: 13.2341Epoch [41/50], Loss: 13.2287Epoch [42/50], Loss: 13.2302Epoch [43/50], Loss: 13.2327Epoch [44/50], Loss: 13.2303Epoch [45/50], Loss: 13.2217Epoch [46/50], Loss: 13.2124Epoch [47/50], Loss: 13.2076Epoch [48/50], Loss: 13.2054Epoch [49/50], Loss: 13.2048Epoch [50/50], Loss: 13.2054
-[WARNING] NaN/Inf detected before local reducer, GFM=1
-NaN count: 67904
-Inf count: 0
-
-Round 0
-[WARNING] NaN/Inf detected before global reducer, GFM=1
-NaN count: 67904
-Inf count: 0
-dbname:muraro	round:6666	alpha:0	beta:1	acc: 0.6131 	ari: 0.49515 	nmi: 0.62626
-dbname:muraro	round:6666	alpha:0.001	beta:1	acc: 0.63761 	ari: 0.53213 	nmi: 0.6511
-dbname:muraro	round:6666	alpha:0.01	beta:1	acc: 0.79406 	ari: 0.6994 	nmi: 0.77831
-dbname:muraro	round:6666	alpha:0.1	beta:1	acc: 0.91423 	ari: 0.90543 	nmi: 0.86066
-dbname:muraro	round:6666	alpha:1	beta:1	acc: 0.91423 	ari: 0.90543 	nmi: 0.86066
-dbname:muraro	round:6666	alpha:1	beta:0.1	acc: 0.91423 	ari: 0.90543 	nmi: 0.86066
-dbname:muraro	round:6666	alpha:1	beta:0.01	acc: 0.91423 	ari: 0.90543 	nmi: 0.86066
-dbname:muraro	round:6666	alpha:1	beta:0.001	acc: 0.91423 	ari: 0.90543 	nmi: 0.86066
-dbname:muraro	round:6666	alpha:1	beta:0	acc: 0.91423 	ari: 0.90543 	nmi: 0.86066
-
-Round 1
-[WARNING] NaN/Inf detected before global reducer, GFM=1
-NaN count: 67904
-Inf count: 0
-dbname:muraro	round:6666	alpha:0	beta:1	acc: 0.61404 	ari: 0.49488 	nmi: 0.62711
-dbname:muraro	round:6666	alpha:0.001	beta:1	acc: 0.63761 	ari: 0.53213 	nmi: 0.6511
-dbname:muraro	round:6666	alpha:0.01	beta:1	acc: 0.79359 	ari: 0.6989 	nmi: 0.77822
-dbname:muraro	round:6666	alpha:0.1	beta:1	acc: 0.91423 	ari: 0.90543 	nmi: 0.86066
-dbname:muraro	round:6666	alpha:1	beta:1	acc: 0.91423 	ari: 0.90543 	nmi: 0.86066
-dbname:muraro	round:6666	alpha:1	beta:0.1	acc: 0.91423 	ari: 0.90543 	nmi: 0.86066
-dbname:muraro	round:6666	alpha:1	beta:0.01	acc: 0.91423 	ari: 0.90543 	nmi: 0.86066
-dbname:muraro	round:6666	alpha:1	beta:0.001	acc: 0.91423 	ari: 0.90543 	nmi: 0.86066
-dbname:muraro	round:6666	alpha:1	beta:0	acc: 0.91423 	ari: 0.90543 	nmi: 0.86066
-
-Round 2
-[WARNING] NaN/Inf detected before global reducer, GFM=1
-NaN count: 67904
-Inf count: 0
-dbname:muraro	round:6666	alpha:0	beta:1	acc: 0.6131 	ari: 0.49655 	nmi: 0.62811
-dbname:muraro	round:6666	alpha:0.001	beta:1	acc: 0.63761 	ari: 0.53213 	nmi: 0.6511
-dbname:muraro	round:6666	alpha:0.01	beta:1	acc: 0.79406 	ari: 0.6994 	nmi: 0.77831
-dbname:muraro	round:6666	alpha:0.1	beta:1	acc: 0.91423 	ari: 0.90543 	nmi: 0.86066
-dbname:muraro	round:6666	alpha:1	beta:1	acc: 0.91423 	ari: 0.90543 	nmi: 0.86066
-dbname:muraro	round:6666	alpha:1	beta:0.1	acc: 0.91423 	ari: 0.90543 	nmi: 0.86066
-dbname:muraro	round:6666	alpha:1	beta:0.01	acc: 0.91423 	ari: 0.90543 	nmi: 0.86066
-dbname:muraro	round:6666	alpha:1	beta:0.001	acc: 0.91423 	ari: 0.90543 	nmi: 0.86066
-dbname:muraro	round:6666	alpha:1	beta:0	acc: 0.91423 	ari: 0.90543 	nmi: 0.86066
-
-Seed: 7777
-
-GFM: 1
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.32s
-return df: 0.48s
-Epoch [1/50], Loss: 29.4519Epoch [2/50], Loss: 19.6578Epoch [3/50], Loss: 15.0016Epoch [4/50], Loss: 14.3683Epoch [5/50], Loss: 14.1123Epoch [6/50], Loss: 13.9633Epoch [7/50], Loss: 13.8298Epoch [8/50], Loss: 13.7051Epoch [9/50], Loss: 13.6055Epoch [10/50], Loss: 13.5326Epoch [11/50], Loss: 13.4837Epoch [12/50], Loss: 13.4475Epoch [13/50], Loss: 13.4153Epoch [14/50], Loss: 13.3827Epoch [15/50], Loss: 13.3491Epoch [16/50], Loss: 13.3168Epoch [17/50], Loss: 13.2884Epoch [18/50], Loss: 13.2633Epoch [19/50], Loss: 13.2410Epoch [20/50], Loss: 13.2206Epoch [21/50], Loss: 13.2018Epoch [22/50], Loss: 13.1844Epoch [23/50], Loss: 13.1681Epoch [24/50], Loss: 13.1530Epoch [25/50], Loss: 13.1389Epoch [26/50], Loss: 13.1253Epoch [27/50], Loss: 13.1123Epoch [28/50], Loss: 13.0997Epoch [29/50], Loss: 13.0880Epoch [30/50], Loss: 13.0762Epoch [31/50], Loss: 13.0667Epoch [32/50], Loss: 13.0560Epoch [33/50], Loss: 13.0471Epoch [34/50], Loss: 13.0383Epoch [35/50], Loss: 13.0300Epoch [36/50], Loss: 13.0208Epoch [37/50], Loss: 13.0156Epoch [38/50], Loss: 13.0080Epoch [39/50], Loss: 13.0025Epoch [40/50], Loss: 12.9967Epoch [41/50], Loss: 12.9958Epoch [42/50], Loss: 12.9906Epoch [43/50], Loss: 12.9853Epoch [44/50], Loss: 12.9895Epoch [45/50], Loss: 12.9963Epoch [46/50], Loss: 13.0104Epoch [47/50], Loss: 13.0305Epoch [48/50], Loss: 13.0463Epoch [49/50], Loss: 13.0469Epoch [50/50], Loss: 13.0372
-GFM: 2
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.33s
-return df: 0.49s
-Epoch [1/50], Loss: 29.7616Epoch [2/50], Loss: 20.5018Epoch [3/50], Loss: 15.0657Epoch [4/50], Loss: 14.5268Epoch [5/50], Loss: 14.3525Epoch [6/50], Loss: 14.2543Epoch [7/50], Loss: 14.1764Epoch [8/50], Loss: 14.0838Epoch [9/50], Loss: 13.9567Epoch [10/50], Loss: 13.8305Epoch [11/50], Loss: 13.7426Epoch [12/50], Loss: 13.6832Epoch [13/50], Loss: 13.6372Epoch [14/50], Loss: 13.5979Epoch [15/50], Loss: 13.5651Epoch [16/50], Loss: 13.5369Epoch [17/50], Loss: 13.5131Epoch [18/50], Loss: 13.4920Epoch [19/50], Loss: 13.4720Epoch [20/50], Loss: 13.4529Epoch [21/50], Loss: 13.4342Epoch [22/50], Loss: 13.4157Epoch [23/50], Loss: 13.3979Epoch [24/50], Loss: 13.3805Epoch [25/50], Loss: 13.3637Epoch [26/50], Loss: 13.3464Epoch [27/50], Loss: 13.3288Epoch [28/50], Loss: 13.3105Epoch [29/50], Loss: 13.2930Epoch [30/50], Loss: 13.2756Epoch [31/50], Loss: 13.2585Epoch [32/50], Loss: 13.2418Epoch [33/50], Loss: 13.2255Epoch [34/50], Loss: 13.2097Epoch [35/50], Loss: 13.1948Epoch [36/50], Loss: 13.1802Epoch [37/50], Loss: 13.1676Epoch [38/50], Loss: 13.1547Epoch [39/50], Loss: 13.1451Epoch [40/50], Loss: 13.1345Epoch [41/50], Loss: 13.1310Epoch [42/50], Loss: 13.1354Epoch [43/50], Loss: 13.1262Epoch [44/50], Loss: 13.1085Epoch [45/50], Loss: 13.0974Epoch [46/50], Loss: 13.0939Epoch [47/50], Loss: 13.0905Epoch [48/50], Loss: 13.0875Epoch [49/50], Loss: 13.0847Epoch [50/50], Loss: 13.0819
-GFM: 3
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.32s
-return df: 0.48s
-Epoch [1/50], Loss: 30.0255Epoch [2/50], Loss: 20.2635Epoch [3/50], Loss: 15.4020Epoch [4/50], Loss: 14.8165Epoch [5/50], Loss: 14.6262Epoch [6/50], Loss: 14.5254Epoch [7/50], Loss: 14.4464Epoch [8/50], Loss: 14.3488Epoch [9/50], Loss: 14.2195Epoch [10/50], Loss: 14.0917Epoch [11/50], Loss: 13.9973Epoch [12/50], Loss: 13.9346Epoch [13/50], Loss: 13.8879Epoch [14/50], Loss: 13.8464Epoch [15/50], Loss: 13.8076Epoch [16/50], Loss: 13.7732Epoch [17/50], Loss: 13.7425Epoch [18/50], Loss: 13.7150Epoch [19/50], Loss: 13.6901Epoch [20/50], Loss: 13.6670Epoch [21/50], Loss: 13.6453Epoch [22/50], Loss: 13.6247Epoch [23/50], Loss: 13.6059Epoch [24/50], Loss: 13.5877Epoch [25/50], Loss: 13.5710Epoch [26/50], Loss: 13.5549Epoch [27/50], Loss: 13.5401Epoch [28/50], Loss: 13.5252Epoch [29/50], Loss: 13.5118Epoch [30/50], Loss: 13.4981Epoch [31/50], Loss: 13.4858Epoch [32/50], Loss: 13.4731Epoch [33/50], Loss: 13.4613Epoch [34/50], Loss: 13.4498Epoch [35/50], Loss: 13.4400Epoch [36/50], Loss: 13.4307Epoch [37/50], Loss: 13.4233Epoch [38/50], Loss: 13.4151Epoch [39/50], Loss: 13.4097Epoch [40/50], Loss: 13.4067Epoch [41/50], Loss: 13.4037Epoch [42/50], Loss: 13.4014Epoch [43/50], Loss: 13.3898Epoch [44/50], Loss: 13.3700Epoch [45/50], Loss: 13.3504Epoch [46/50], Loss: 13.3367Epoch [47/50], Loss: 13.3291Epoch [48/50], Loss: 13.3256Epoch [49/50], Loss: 13.3214Epoch [50/50], Loss: 13.3180
-GFM: 4
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.32s
-return df: 0.49s
-Epoch [1/50], Loss: 29.4882Epoch [2/50], Loss: 20.1689Epoch [3/50], Loss: 14.7776Epoch [4/50], Loss: 14.2715Epoch [5/50], Loss: 14.0966Epoch [6/50], Loss: 13.9773Epoch [7/50], Loss: 13.8506Epoch [8/50], Loss: 13.7168Epoch [9/50], Loss: 13.6066Epoch [10/50], Loss: 13.5301Epoch [11/50], Loss: 13.4775Epoch [12/50], Loss: 13.4360Epoch [13/50], Loss: 13.3982Epoch [14/50], Loss: 13.3619Epoch [15/50], Loss: 13.3290Epoch [16/50], Loss: 13.3009Epoch [17/50], Loss: 13.2766Epoch [18/50], Loss: 13.2552Epoch [19/50], Loss: 13.2356Epoch [20/50], Loss: 13.2174Epoch [21/50], Loss: 13.1997Epoch [22/50], Loss: 13.1826Epoch [23/50], Loss: 13.1662Epoch [24/50], Loss: 13.1510Epoch [25/50], Loss: 13.1361Epoch [26/50], Loss: 13.1218Epoch [27/50], Loss: 13.1077Epoch [28/50], Loss: 13.0946Epoch [29/50], Loss: 13.0801Epoch [30/50], Loss: 13.0662Epoch [31/50], Loss: 13.0518Epoch [32/50], Loss: 13.0385Epoch [33/50], Loss: 13.0250Epoch [34/50], Loss: 13.0139Epoch [35/50], Loss: 13.0026Epoch [36/50], Loss: 12.9931Epoch [37/50], Loss: 12.9840Epoch [38/50], Loss: 12.9775Epoch [39/50], Loss: 12.9761Epoch [40/50], Loss: 12.9775Epoch [41/50], Loss: 12.9759Epoch [42/50], Loss: 12.9635Epoch [43/50], Loss: 12.9461Epoch [44/50], Loss: 12.9331Epoch [45/50], Loss: 12.9271Epoch [46/50], Loss: 12.9224Epoch [47/50], Loss: 12.9226Epoch [48/50], Loss: 12.9236Epoch [49/50], Loss: 12.9267Epoch [50/50], Loss: 12.9262
-GFM: 5
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.32s
-return df: 0.48s
-Epoch [1/50], Loss: 29.8414Epoch [2/50], Loss: 19.8618Epoch [3/50], Loss: 15.1349Epoch [4/50], Loss: 14.6160Epoch [5/50], Loss: 14.4240Epoch [6/50], Loss: 14.2804Epoch [7/50], Loss: 14.1270Epoch [8/50], Loss: 13.9864Epoch [9/50], Loss: 13.8921Epoch [10/50], Loss: 13.8320Epoch [11/50], Loss: 13.7899Epoch [12/50], Loss: 13.7554Epoch [13/50], Loss: 13.7224Epoch [14/50], Loss: 13.6894Epoch [15/50], Loss: 13.6580Epoch [16/50], Loss: 13.6293Epoch [17/50], Loss: 13.6036Epoch [18/50], Loss: 13.5803Epoch [19/50], Loss: 13.5587Epoch [20/50], Loss: 13.5386Epoch [21/50], Loss: 13.5196Epoch [22/50], Loss: 13.5018Epoch [23/50], Loss: 13.4853Epoch [24/50], Loss: 13.4688Epoch [25/50], Loss: 13.4537Epoch [26/50], Loss: 13.4397Epoch [27/50], Loss: 13.4265Epoch [28/50], Loss: 13.4136Epoch [29/50], Loss: 13.4003Epoch [30/50], Loss: 13.3878Epoch [31/50], Loss: 13.3750Epoch [32/50], Loss: 13.3624Epoch [33/50], Loss: 13.3504Epoch [34/50], Loss: 13.3393Epoch [35/50], Loss: 13.3295Epoch [36/50], Loss: 13.3199Epoch [37/50], Loss: 13.3115Epoch [38/50], Loss: 13.3091Epoch [39/50], Loss: 13.3084Epoch [40/50], Loss: 13.3056Epoch [41/50], Loss: 13.2922Epoch [42/50], Loss: 13.2744Epoch [43/50], Loss: 13.2640Epoch [44/50], Loss: 13.2626Epoch [45/50], Loss: 13.2680Epoch [46/50], Loss: 13.2801Epoch [47/50], Loss: 13.2946Epoch [48/50], Loss: 13.3027Epoch [49/50], Loss: 13.2920Epoch [50/50], Loss: 13.2810
-
-Round 0
-dbname:muraro	round:7777	alpha:0	beta:1	acc: 0.82752 	ari: 0.76874 	nmi: 0.79962
-dbname:muraro	round:7777	alpha:0.001	beta:1	acc: 0.9213 	ari: 0.91415 	nmi: 0.87167
-dbname:muraro	round:7777	alpha:0.01	beta:1	acc: 0.91517 	ari: 0.90384 	nmi: 0.86574
-dbname:muraro	round:7777	alpha:0.1	beta:1	acc: 0.90999 	ari: 0.89156 	nmi: 0.85614
-dbname:muraro	round:7777	alpha:1	beta:1	acc: 0.90999 	ari: 0.89156 	nmi: 0.85614
-dbname:muraro	round:7777	alpha:1	beta:0.1	acc: 0.90999 	ari: 0.89156 	nmi: 0.85614
-dbname:muraro	round:7777	alpha:1	beta:0.01	acc: 0.90999 	ari: 0.89156 	nmi: 0.85614
-dbname:muraro	round:7777	alpha:1	beta:0.001	acc: 0.90999 	ari: 0.89156 	nmi: 0.85614
-dbname:muraro	round:7777	alpha:1	beta:0	acc: 0.90999 	ari: 0.89156 	nmi: 0.85614
-
-Round 1
-dbname:muraro	round:7777	alpha:0	beta:1	acc: 0.82752 	ari: 0.76874 	nmi: 0.79962
-dbname:muraro	round:7777	alpha:0.001	beta:1	acc: 0.9213 	ari: 0.91415 	nmi: 0.87167
-dbname:muraro	round:7777	alpha:0.01	beta:1	acc: 0.91517 	ari: 0.90384 	nmi: 0.86574
-dbname:muraro	round:7777	alpha:0.1	beta:1	acc: 0.90999 	ari: 0.89156 	nmi: 0.85614
-dbname:muraro	round:7777	alpha:1	beta:1	acc: 0.90999 	ari: 0.89156 	nmi: 0.85614
-dbname:muraro	round:7777	alpha:1	beta:0.1	acc: 0.90999 	ari: 0.89156 	nmi: 0.85614
-dbname:muraro	round:7777	alpha:1	beta:0.01	acc: 0.90999 	ari: 0.89156 	nmi: 0.85614
-dbname:muraro	round:7777	alpha:1	beta:0.001	acc: 0.90999 	ari: 0.89156 	nmi: 0.85614
-dbname:muraro	round:7777	alpha:1	beta:0	acc: 0.90999 	ari: 0.89156 	nmi: 0.85614
-
-Round 2
-dbname:muraro	round:7777	alpha:0	beta:1	acc: 0.82752 	ari: 0.76874 	nmi: 0.79962
-dbname:muraro	round:7777	alpha:0.001	beta:1	acc: 0.9213 	ari: 0.91455 	nmi: 0.87266
-dbname:muraro	round:7777	alpha:0.01	beta:1	acc: 0.91517 	ari: 0.90384 	nmi: 0.86574
-dbname:muraro	round:7777	alpha:0.1	beta:1	acc: 0.90999 	ari: 0.89156 	nmi: 0.85614
-dbname:muraro	round:7777	alpha:1	beta:1	acc: 0.90999 	ari: 0.89156 	nmi: 0.85614
-dbname:muraro	round:7777	alpha:1	beta:0.1	acc: 0.90999 	ari: 0.89156 	nmi: 0.85614
-dbname:muraro	round:7777	alpha:1	beta:0.01	acc: 0.90999 	ari: 0.89156 	nmi: 0.85614
-dbname:muraro	round:7777	alpha:1	beta:0.001	acc: 0.90999 	ari: 0.89156 	nmi: 0.85614
-dbname:muraro	round:7777	alpha:1	beta:0	acc: 0.90999 	ari: 0.89156 	nmi: 0.85614
-
-Seed: 8888
-
-GFM: 1
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.34s
-return df: 0.49s
-Epoch [1/50], Loss: 29.5312Epoch [2/50], Loss: 20.0003Epoch [3/50], Loss: 14.7949Epoch [4/50], Loss: 14.2764Epoch [5/50], Loss: 14.1117Epoch [6/50], Loss: 14.0079Epoch [7/50], Loss: 13.9159Epoch [8/50], Loss: 13.8169Epoch [9/50], Loss: 13.7154Epoch [10/50], Loss: 13.6164Epoch [11/50], Loss: 13.5332Epoch [12/50], Loss: 13.4770Epoch [13/50], Loss: 13.4364Epoch [14/50], Loss: 13.4017Epoch [15/50], Loss: 13.3688Epoch [16/50], Loss: 13.3373Epoch [17/50], Loss: 13.3089Epoch [18/50], Loss: 13.2842Epoch [19/50], Loss: 13.2628Epoch [20/50], Loss: 13.2437Epoch [21/50], Loss: 13.2261Epoch [22/50], Loss: 13.2091Epoch [23/50], Loss: 13.1922Epoch [24/50], Loss: 13.1753Epoch [25/50], Loss: 13.1579Epoch [26/50], Loss: 13.1410Epoch [27/50], Loss: 13.1248Epoch [28/50], Loss: 13.1110Epoch [29/50], Loss: 13.0977Epoch [30/50], Loss: 13.0844Epoch [31/50], Loss: 13.0719Epoch [32/50], Loss: 13.0616Epoch [33/50], Loss: 13.0541Epoch [34/50], Loss: 13.0481Epoch [35/50], Loss: 13.0431Epoch [36/50], Loss: 13.0401Epoch [37/50], Loss: 13.0379Epoch [38/50], Loss: 13.0351Epoch [39/50], Loss: 13.0301Epoch [40/50], Loss: 13.0209Epoch [41/50], Loss: 13.0068Epoch [42/50], Loss: 12.9949Epoch [43/50], Loss: 12.9856Epoch [44/50], Loss: 12.9769Epoch [45/50], Loss: 12.9687Epoch [46/50], Loss: 12.9629Epoch [47/50], Loss: 12.9598Epoch [48/50], Loss: 12.9560Epoch [49/50], Loss: 12.9504Epoch [50/50], Loss: 12.9413
-GFM: 2
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.33s
-return df: 0.49s
-Epoch [1/50], Loss: 29.8664Epoch [2/50], Loss: 21.5800Epoch [3/50], Loss: 15.1578Epoch [4/50], Loss: 14.5378Epoch [5/50], Loss: 14.3528Epoch [6/50], Loss: 14.2551Epoch [7/50], Loss: 14.1793Epoch [8/50], Loss: 14.0865Epoch [9/50], Loss: 13.9569Epoch [10/50], Loss: 13.8299Epoch [11/50], Loss: 13.7478Epoch [12/50], Loss: 13.6995Epoch [13/50], Loss: 13.6657Epoch [14/50], Loss: 13.6362Epoch [15/50], Loss: 13.6061Epoch [16/50], Loss: 13.5739Epoch [17/50], Loss: 13.5412Epoch [18/50], Loss: 13.5119Epoch [19/50], Loss: 13.4862Epoch [20/50], Loss: 13.4634Epoch [21/50], Loss: 13.4432Epoch [22/50], Loss: 13.4236Epoch [23/50], Loss: 13.4058Epoch [24/50], Loss: 13.3875Epoch [25/50], Loss: 13.3709Epoch [26/50], Loss: 13.3530Epoch [27/50], Loss: 13.3365Epoch [28/50], Loss: 13.3213Epoch [29/50], Loss: 13.3083Epoch [30/50], Loss: 13.2958Epoch [31/50], Loss: 13.2852Epoch [32/50], Loss: 13.2743Epoch [33/50], Loss: 13.2653Epoch [34/50], Loss: 13.2535Epoch [35/50], Loss: 13.2420Epoch [36/50], Loss: 13.2293Epoch [37/50], Loss: 13.2219Epoch [38/50], Loss: 13.2225Epoch [39/50], Loss: 13.2235Epoch [40/50], Loss: 13.2141Epoch [41/50], Loss: 13.1983Epoch [42/50], Loss: 13.1830Epoch [43/50], Loss: 13.1719Epoch [44/50], Loss: 13.1633Epoch [45/50], Loss: 13.1527Epoch [46/50], Loss: 13.1413Epoch [47/50], Loss: 13.1307Epoch [48/50], Loss: 13.1197Epoch [49/50], Loss: 13.1053Epoch [50/50], Loss: 13.0872
-GFM: 3
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.33s
-return df: 0.49s
-Epoch [1/50], Loss: 29.9556Epoch [2/50], Loss: 20.2424Epoch [3/50], Loss: 15.2084Epoch [4/50], Loss: 14.7519Epoch [5/50], Loss: 14.6015Epoch [6/50], Loss: 14.5072Epoch [7/50], Loss: 14.4170Epoch [8/50], Loss: 14.3057Epoch [9/50], Loss: 14.1867Epoch [10/50], Loss: 14.0709Epoch [11/50], Loss: 13.9736Epoch [12/50], Loss: 13.9022Epoch [13/50], Loss: 13.8508Epoch [14/50], Loss: 13.8131Epoch [15/50], Loss: 13.7846Epoch [16/50], Loss: 13.7621Epoch [17/50], Loss: 13.7429Epoch [18/50], Loss: 13.7255Epoch [19/50], Loss: 13.7093Epoch [20/50], Loss: 13.6930Epoch [21/50], Loss: 13.6761Epoch [22/50], Loss: 13.6587Epoch [23/50], Loss: 13.6407Epoch [24/50], Loss: 13.6222Epoch [25/50], Loss: 13.6038Epoch [26/50], Loss: 13.5849Epoch [27/50], Loss: 13.5674Epoch [28/50], Loss: 13.5507Epoch [29/50], Loss: 13.5343Epoch [30/50], Loss: 13.5200Epoch [31/50], Loss: 13.5056Epoch [32/50], Loss: 13.4933Epoch [33/50], Loss: 13.4810Epoch [34/50], Loss: 13.4731Epoch [35/50], Loss: 13.4710Epoch [36/50], Loss: 13.4588Epoch [37/50], Loss: 13.4390Epoch [38/50], Loss: 13.4186Epoch [39/50], Loss: 13.4037Epoch [40/50], Loss: 13.3918Epoch [41/50], Loss: 13.3820Epoch [42/50], Loss: 13.3728Epoch [43/50], Loss: 13.3660Epoch [44/50], Loss: 13.3614Epoch [45/50], Loss: 13.3656Epoch [46/50], Loss: 13.3687Epoch [47/50], Loss: 13.3537Epoch [48/50], Loss: 13.3394Epoch [49/50], Loss: 13.3276Epoch [50/50], Loss: 13.3243
-GFM: 4
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.33s
-return df: 0.49s
-Epoch [1/50], Loss: 29.5507Epoch [2/50], Loss: 20.0937Epoch [3/50], Loss: 14.9785Epoch [4/50], Loss: 14.3505Epoch [5/50], Loss: 14.1388Epoch [6/50], Loss: 14.0251Epoch [7/50], Loss: 13.9298Epoch [8/50], Loss: 13.8170Epoch [9/50], Loss: 13.6970Epoch [10/50], Loss: 13.5900Epoch [11/50], Loss: 13.5124Epoch [12/50], Loss: 13.4572Epoch [13/50], Loss: 13.4111Epoch [14/50], Loss: 13.3687Epoch [15/50], Loss: 13.3315Epoch [16/50], Loss: 13.3005Epoch [17/50], Loss: 13.2742Epoch [18/50], Loss: 13.2500Epoch [19/50], Loss: 13.2273Epoch [20/50], Loss: 13.2055Epoch [21/50], Loss: 13.1851Epoch [22/50], Loss: 13.1655Epoch [23/50], Loss: 13.1471Epoch [24/50], Loss: 13.1299Epoch [25/50], Loss: 13.1139Epoch [26/50], Loss: 13.0990Epoch [27/50], Loss: 13.0852Epoch [28/50], Loss: 13.0723Epoch [29/50], Loss: 13.0599Epoch [30/50], Loss: 13.0485Epoch [31/50], Loss: 13.0369Epoch [32/50], Loss: 13.0264Epoch [33/50], Loss: 13.0162Epoch [34/50], Loss: 13.0062Epoch [35/50], Loss: 12.9977Epoch [36/50], Loss: 12.9894Epoch [37/50], Loss: 12.9813Epoch [38/50], Loss: 12.9737Epoch [39/50], Loss: 12.9687Epoch [40/50], Loss: 12.9691Epoch [41/50], Loss: 12.9668Epoch [42/50], Loss: 12.9603Epoch [43/50], Loss: 12.9550Epoch [44/50], Loss: 12.9522Epoch [45/50], Loss: 12.9543Epoch [46/50], Loss: 12.9580Epoch [47/50], Loss: 12.9562Epoch [48/50], Loss: 12.9528Epoch [49/50], Loss: 12.9476Epoch [50/50], Loss: 12.9412
-GFM: 5
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.34s
-return df: 0.49s
-Epoch [1/50], Loss: 29.8469Epoch [2/50], Loss: 20.0197Epoch [3/50], Loss: 15.1439Epoch [4/50], Loss: 14.6216Epoch [5/50], Loss: 14.4473Epoch [6/50], Loss: 14.3415Epoch [7/50], Loss: 14.2418Epoch [8/50], Loss: 14.1127Epoch [9/50], Loss: 13.9815Epoch [10/50], Loss: 13.8848Epoch [11/50], Loss: 13.8175Epoch [12/50], Loss: 13.7653Epoch [13/50], Loss: 13.7206Epoch [14/50], Loss: 13.6827Epoch [15/50], Loss: 13.6520Epoch [16/50], Loss: 13.6268Epoch [17/50], Loss: 13.6053Epoch [18/50], Loss: 13.5853Epoch [19/50], Loss: 13.5661Epoch [20/50], Loss: 13.5467Epoch [21/50], Loss: 13.5269Epoch [22/50], Loss: 13.5078Epoch [23/50], Loss: 13.4883Epoch [24/50], Loss: 13.4695Epoch [25/50], Loss: 13.4515Epoch [26/50], Loss: 13.4344Epoch [27/50], Loss: 13.4177Epoch [28/50], Loss: 13.4015Epoch [29/50], Loss: 13.3857Epoch [30/50], Loss: 13.3698Epoch [31/50], Loss: 13.3540Epoch [32/50], Loss: 13.3391Epoch [33/50], Loss: 13.3239Epoch [34/50], Loss: 13.3098Epoch [35/50], Loss: 13.2972Epoch [36/50], Loss: 13.2862Epoch [37/50], Loss: 13.2771Epoch [38/50], Loss: 13.2721Epoch [39/50], Loss: 13.2701Epoch [40/50], Loss: 13.2783Epoch [41/50], Loss: 13.2718Epoch [42/50], Loss: 13.2571Epoch [43/50], Loss: 13.2472Epoch [44/50], Loss: 13.2404Epoch [45/50], Loss: 13.2394Epoch [46/50], Loss: 13.2374Epoch [47/50], Loss: 13.2363Epoch [48/50], Loss: 13.2381Epoch [49/50], Loss: 13.2371Epoch [50/50], Loss: 13.2329
-
-Round 0
-dbname:muraro	round:8888	alpha:0	beta:1	acc: 0.91706 	ari: 0.91734 	nmi: 0.87197
-dbname:muraro	round:8888	alpha:0.001	beta:1	acc: 0.91565 	ari: 0.90339 	nmi: 0.86468
-dbname:muraro	round:8888	alpha:0.01	beta:1	acc: 0.66211 	ari: 0.56037 	nmi: 0.73435
-dbname:muraro	round:8888	alpha:0.1	beta:1	acc: 0.66682 	ari: 0.55823 	nmi: 0.73091
-dbname:muraro	round:8888	alpha:1	beta:1	acc: 0.66682 	ari: 0.55823 	nmi: 0.73091
-dbname:muraro	round:8888	alpha:1	beta:0.1	acc: 0.66682 	ari: 0.55823 	nmi: 0.73091
-dbname:muraro	round:8888	alpha:1	beta:0.01	acc: 0.66682 	ari: 0.55823 	nmi: 0.73091
-dbname:muraro	round:8888	alpha:1	beta:0.001	acc: 0.66682 	ari: 0.55823 	nmi: 0.73091
-dbname:muraro	round:8888	alpha:1	beta:0	acc: 0.66682 	ari: 0.55823 	nmi: 0.73091
-
-Round 1
-dbname:muraro	round:8888	alpha:0	beta:1	acc: 0.91706 	ari: 0.91734 	nmi: 0.87197
-dbname:muraro	round:8888	alpha:0.001	beta:1	acc: 0.91565 	ari: 0.90339 	nmi: 0.86468
-dbname:muraro	round:8888	alpha:0.01	beta:1	acc: 0.66211 	ari: 0.56037 	nmi: 0.73435
-dbname:muraro	round:8888	alpha:0.1	beta:1	acc: 0.66682 	ari: 0.55823 	nmi: 0.73091
-dbname:muraro	round:8888	alpha:1	beta:1	acc: 0.66682 	ari: 0.55823 	nmi: 0.73091
-dbname:muraro	round:8888	alpha:1	beta:0.1	acc: 0.66682 	ari: 0.55823 	nmi: 0.73091
-dbname:muraro	round:8888	alpha:1	beta:0.01	acc: 0.66682 	ari: 0.55823 	nmi: 0.73091
-dbname:muraro	round:8888	alpha:1	beta:0.001	acc: 0.66682 	ari: 0.55823 	nmi: 0.73091
-dbname:muraro	round:8888	alpha:1	beta:0	acc: 0.66682 	ari: 0.55823 	nmi: 0.73091
-
-Round 2
-dbname:muraro	round:8888	alpha:0	beta:1	acc: 0.91706 	ari: 0.91734 	nmi: 0.87197
-dbname:muraro	round:8888	alpha:0.001	beta:1	acc: 0.91565 	ari: 0.90339 	nmi: 0.86468
-dbname:muraro	round:8888	alpha:0.01	beta:1	acc: 0.66211 	ari: 0.56037 	nmi: 0.73435
-dbname:muraro	round:8888	alpha:0.1	beta:1	acc: 0.66682 	ari: 0.55823 	nmi: 0.73091
-dbname:muraro	round:8888	alpha:1	beta:1	acc: 0.66682 	ari: 0.55823 	nmi: 0.73091
-dbname:muraro	round:8888	alpha:1	beta:0.1	acc: 0.66682 	ari: 0.55823 	nmi: 0.73091
-dbname:muraro	round:8888	alpha:1	beta:0.01	acc: 0.66682 	ari: 0.55823 	nmi: 0.73091
-dbname:muraro	round:8888	alpha:1	beta:0.001	acc: 0.66682 	ari: 0.55823 	nmi: 0.73091
-dbname:muraro	round:8888	alpha:1	beta:0	acc: 0.66682 	ari: 0.55823 	nmi: 0.73091
-
-Seed: 9999
-
-GFM: 1
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.32s
-return df: 0.48s
-Epoch [1/50], Loss: 29.5416Epoch [2/50], Loss: 20.1730Epoch [3/50], Loss: 14.7745Epoch [4/50], Loss: 14.2650Epoch [5/50], Loss: 14.0852Epoch [6/50], Loss: 13.9613Epoch [7/50], Loss: 13.8493Epoch [8/50], Loss: 13.7662Epoch [9/50], Loss: 13.7089Epoch [10/50], Loss: 13.6601Epoch [11/50], Loss: 13.6071Epoch [12/50], Loss: 13.5428Epoch [13/50], Loss: 13.4724Epoch [14/50], Loss: 13.4102Epoch [15/50], Loss: 13.3643Epoch [16/50], Loss: 13.3303Epoch [17/50], Loss: 13.3039Epoch [18/50], Loss: 13.2822Epoch [19/50], Loss: 13.2634Epoch [20/50], Loss: 13.2464Epoch [21/50], Loss: 13.2301Epoch [22/50], Loss: 13.2149Epoch [23/50], Loss: 13.1992Epoch [24/50], Loss: 13.1845Epoch [25/50], Loss: 13.1695Epoch [26/50], Loss: 13.1556Epoch [27/50], Loss: 13.1412Epoch [28/50], Loss: 13.1274Epoch [29/50], Loss: 13.1136Epoch [30/50], Loss: 13.1005Epoch [31/50], Loss: 13.0875Epoch [32/50], Loss: 13.0749Epoch [33/50], Loss: 13.0624Epoch [34/50], Loss: 13.0498Epoch [35/50], Loss: 13.0367Epoch [36/50], Loss: 13.0244Epoch [37/50], Loss: 13.0126Epoch [38/50], Loss: 13.0037Epoch [39/50], Loss: 12.9926Epoch [40/50], Loss: 12.9830Epoch [41/50], Loss: 12.9744Epoch [42/50], Loss: 12.9662Epoch [43/50], Loss: 12.9628Epoch [44/50], Loss: 12.9576Epoch [45/50], Loss: 12.9513Epoch [46/50], Loss: 12.9426Epoch [47/50], Loss: 12.9335Epoch [48/50], Loss: 12.9274Epoch [49/50], Loss: 12.9261Epoch [50/50], Loss: 12.9275
-GFM: 2
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.32s
-return df: 0.48s
-Epoch [1/50], Loss: 29.6962Epoch [2/50], Loss: 20.2898Epoch [3/50], Loss: 15.1691Epoch [4/50], Loss: 14.5616Epoch [5/50], Loss: 14.3544Epoch [6/50], Loss: 14.2473Epoch [7/50], Loss: 14.1704Epoch [8/50], Loss: 14.0825Epoch [9/50], Loss: 13.9686Epoch [10/50], Loss: 13.8488Epoch [11/50], Loss: 13.7600Epoch [12/50], Loss: 13.7020Epoch [13/50], Loss: 13.6598Epoch [14/50], Loss: 13.6227Epoch [15/50], Loss: 13.5874Epoch [16/50], Loss: 13.5560Epoch [17/50], Loss: 13.5291Epoch [18/50], Loss: 13.5063Epoch [19/50], Loss: 13.4859Epoch [20/50], Loss: 13.4673Epoch [21/50], Loss: 13.4497Epoch [22/50], Loss: 13.4321Epoch [23/50], Loss: 13.4149Epoch [24/50], Loss: 13.3974Epoch [25/50], Loss: 13.3800Epoch [26/50], Loss: 13.3630Epoch [27/50], Loss: 13.3469Epoch [28/50], Loss: 13.3309Epoch [29/50], Loss: 13.3169Epoch [30/50], Loss: 13.3014Epoch [31/50], Loss: 13.2889Epoch [32/50], Loss: 13.2740Epoch [33/50], Loss: 13.2627Epoch [34/50], Loss: 13.2491Epoch [35/50], Loss: 13.2397Epoch [36/50], Loss: 13.2297Epoch [37/50], Loss: 13.2255Epoch [38/50], Loss: 13.2264Epoch [39/50], Loss: 13.2221Epoch [40/50], Loss: 13.2005Epoch [41/50], Loss: 13.1833Epoch [42/50], Loss: 13.1772Epoch [43/50], Loss: 13.1760Epoch [44/50], Loss: 13.1781Epoch [45/50], Loss: 13.1737Epoch [46/50], Loss: 13.1629Epoch [47/50], Loss: 13.1496Epoch [48/50], Loss: 13.1354Epoch [49/50], Loss: 13.1220Epoch [50/50], Loss: 13.1077
-GFM: 3
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.32s
-return df: 0.48s
-Epoch [1/50], Loss: infEpoch [2/50], Loss: infEpoch [3/50], Loss: infEpoch [4/50], Loss: infEpoch [5/50], Loss: infEpoch [6/50], Loss: infEpoch [7/50], Loss: infEpoch [8/50], Loss: infEpoch [9/50], Loss: infEpoch [10/50], Loss: infEpoch [11/50], Loss: infEpoch [12/50], Loss: infEpoch [13/50], Loss: infEpoch [14/50], Loss: infEpoch [15/50], Loss: infEpoch [16/50], Loss: infEpoch [17/50], Loss: infEpoch [18/50], Loss: infEpoch [19/50], Loss: infEpoch [20/50], Loss: infEpoch [21/50], Loss: infEpoch [22/50], Loss: infEpoch [23/50], Loss: infEpoch [24/50], Loss: infEpoch [25/50], Loss: infEpoch [26/50], Loss: infEpoch [27/50], Loss: infEpoch [28/50], Loss: infEpoch [29/50], Loss: infEpoch [30/50], Loss: infEpoch [31/50], Loss: infEpoch [32/50], Loss: infEpoch [33/50], Loss: infEpoch [34/50], Loss: infEpoch [35/50], Loss: infEpoch [36/50], Loss: infEpoch [37/50], Loss: infEpoch [38/50], Loss: infEpoch [39/50], Loss: infEpoch [40/50], Loss: infEpoch [41/50], Loss: infEpoch [42/50], Loss: infEpoch [43/50], Loss: infEpoch [44/50], Loss: infEpoch [45/50], Loss: infEpoch [46/50], Loss: infEpoch [47/50], Loss: infEpoch [48/50], Loss: infEpoch [49/50], Loss: infEpoch [50/50], Loss: inf
-GFM: 4
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.32s
-return df: 0.48s
-Epoch [1/50], Loss: 29.4809Epoch [2/50], Loss: 19.9293Epoch [3/50], Loss: 14.9061Epoch [4/50], Loss: 14.3273Epoch [5/50], Loss: 14.1225Epoch [6/50], Loss: 14.0152Epoch [7/50], Loss: 13.9308Epoch [8/50], Loss: 13.8338Epoch [9/50], Loss: 13.7277Epoch [10/50], Loss: 13.6292Epoch [11/50], Loss: 13.5459Epoch [12/50], Loss: 13.4832Epoch [13/50], Loss: 13.4355Epoch [14/50], Loss: 13.3951Epoch [15/50], Loss: 13.3601Epoch [16/50], Loss: 13.3306Epoch [17/50], Loss: 13.3060Epoch [18/50], Loss: 13.2848Epoch [19/50], Loss: 13.2652Epoch [20/50], Loss: 13.2464Epoch [21/50], Loss: 13.2282Epoch [22/50], Loss: 13.2101Epoch [23/50], Loss: 13.1916Epoch [24/50], Loss: 13.1726Epoch [25/50], Loss: 13.1536Epoch [26/50], Loss: 13.1350Epoch [27/50], Loss: 13.1174Epoch [28/50], Loss: 13.1018Epoch [29/50], Loss: 13.0866Epoch [30/50], Loss: 13.0730Epoch [31/50], Loss: 13.0598Epoch [32/50], Loss: 13.0481Epoch [33/50], Loss: 13.0365Epoch [34/50], Loss: 13.0266Epoch [35/50], Loss: 13.0171Epoch [36/50], Loss: 13.0075Epoch [37/50], Loss: 12.9994Epoch [38/50], Loss: 12.9926Epoch [39/50], Loss: 12.9901Epoch [40/50], Loss: 12.9912Epoch [41/50], Loss: 12.9895Epoch [42/50], Loss: 12.9786Epoch [43/50], Loss: 12.9674Epoch [44/50], Loss: 12.9657Epoch [45/50], Loss: 12.9698Epoch [46/50], Loss: 12.9833Epoch [47/50], Loss: 12.9986Epoch [48/50], Loss: 13.0187Epoch [49/50], Loss: 13.0352Epoch [50/50], Loss: 13.0350
-GFM: 5
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.32s
-return df: 0.48s
-Epoch [1/50], Loss: 29.9847Epoch [2/50], Loss: 20.9268Epoch [3/50], Loss: 15.1434Epoch [4/50], Loss: 14.6010Epoch [5/50], Loss: 14.4065Epoch [6/50], Loss: 14.2553Epoch [7/50], Loss: 14.0989Epoch [8/50], Loss: 13.9672Epoch [9/50], Loss: 13.8809Epoch [10/50], Loss: 13.8238Epoch [11/50], Loss: 13.7794Epoch [12/50], Loss: 13.7378Epoch [13/50], Loss: 13.6978Epoch [14/50], Loss: 13.6626Epoch [15/50], Loss: 13.6341Epoch [16/50], Loss: 13.6105Epoch [17/50], Loss: 13.5900Epoch [18/50], Loss: 13.5712Epoch [19/50], Loss: 13.5535Epoch [20/50], Loss: 13.5353Epoch [21/50], Loss: 13.5175Epoch [22/50], Loss: 13.4992Epoch [23/50], Loss: 13.4819Epoch [24/50], Loss: 13.4643Epoch [25/50], Loss: 13.4475Epoch [26/50], Loss: 13.4309Epoch [27/50], Loss: 13.4160Epoch [28/50], Loss: 13.4008Epoch [29/50], Loss: 13.3877Epoch [30/50], Loss: 13.3727Epoch [31/50], Loss: 13.3604Epoch [32/50], Loss: 13.3471Epoch [33/50], Loss: 13.3357Epoch [34/50], Loss: 13.3231Epoch [35/50], Loss: 13.3122Epoch [36/50], Loss: 13.3030Epoch [37/50], Loss: 13.2977Epoch [38/50], Loss: 13.2932Epoch [39/50], Loss: 13.2960Epoch [40/50], Loss: 13.3082Epoch [41/50], Loss: 13.3090Epoch [42/50], Loss: 13.2874Epoch [43/50], Loss: 13.2658Epoch [44/50], Loss: 13.2552Epoch [45/50], Loss: 13.2450Epoch [46/50], Loss: 13.2347Epoch [47/50], Loss: 13.2240Epoch [48/50], Loss: 13.2159Epoch [49/50], Loss: 13.2084Epoch [50/50], Loss: 13.1990
-[WARNING] NaN/Inf detected before local reducer, GFM=3
-NaN count: 67904
-Inf count: 0
-
-Round 0
-[WARNING] NaN/Inf detected before global reducer, GFM=3
-NaN count: 67904
-Inf count: 0
-dbname:muraro	round:9999	alpha:0	beta:1	acc: 0.63195 	ari: 0.45818 	nmi: 0.58403
-dbname:muraro	round:9999	alpha:0.001	beta:1	acc: 0.63478 	ari: 0.48975 	nmi: 0.61354
-dbname:muraro	round:9999	alpha:0.01	beta:1	acc: 0.72714 	ari: 0.58477 	nmi: 0.71482
-dbname:muraro	round:9999	alpha:0.1	beta:1	acc: 0.76343 	ari: 0.64484 	nmi: 0.77335
-dbname:muraro	round:9999	alpha:1	beta:1	acc: 0.76343 	ari: 0.64484 	nmi: 0.77335
-dbname:muraro	round:9999	alpha:1	beta:0.1	acc: 0.76296 	ari: 0.64454 	nmi: 0.77328
-dbname:muraro	round:9999	alpha:1	beta:0.01	acc: 0.76296 	ari: 0.64454 	nmi: 0.77328
-dbname:muraro	round:9999	alpha:1	beta:0.001	acc: 0.76296 	ari: 0.64454 	nmi: 0.77328
-dbname:muraro	round:9999	alpha:1	beta:0	acc: 0.76296 	ari: 0.64454 	nmi: 0.77328
-
-Round 1
-[WARNING] NaN/Inf detected before global reducer, GFM=3
-NaN count: 67904
-Inf count: 0
-dbname:muraro	round:9999	alpha:0	beta:1	acc: 0.63148 	ari: 0.459 	nmi: 0.58527
-dbname:muraro	round:9999	alpha:0.001	beta:1	acc: 0.63572 	ari: 0.49173 	nmi: 0.61501
-dbname:muraro	round:9999	alpha:0.01	beta:1	acc: 0.72714 	ari: 0.58477 	nmi: 0.71482
-dbname:muraro	round:9999	alpha:0.1	beta:1	acc: 0.76343 	ari: 0.64484 	nmi: 0.77335
-dbname:muraro	round:9999	alpha:1	beta:1	acc: 0.76343 	ari: 0.64484 	nmi: 0.77335
-dbname:muraro	round:9999	alpha:1	beta:0.1	acc: 0.76343 	ari: 0.64484 	nmi: 0.77335
-dbname:muraro	round:9999	alpha:1	beta:0.01	acc: 0.7639 	ari: 0.64515 	nmi: 0.77343
-dbname:muraro	round:9999	alpha:1	beta:0.001	acc: 0.7639 	ari: 0.64515 	nmi: 0.77343
-dbname:muraro	round:9999	alpha:1	beta:0	acc: 0.7639 	ari: 0.64515 	nmi: 0.77343
-
-Round 2
-[WARNING] NaN/Inf detected before global reducer, GFM=3
-NaN count: 67904
-Inf count: 0
-dbname:muraro	round:9999	alpha:0	beta:1	acc: 0.63195 	ari: 0.45998 	nmi: 0.58609
-dbname:muraro	round:9999	alpha:0.001	beta:1	acc: 0.63572 	ari: 0.49173 	nmi: 0.61501
-dbname:muraro	round:9999	alpha:0.01	beta:1	acc: 0.72714 	ari: 0.58477 	nmi: 0.71482
-dbname:muraro	round:9999	alpha:0.1	beta:1	acc: 0.76296 	ari: 0.64454 	nmi: 0.77328
-dbname:muraro	round:9999	alpha:1	beta:1	acc: 0.76296 	ari: 0.64454 	nmi: 0.77328
-dbname:muraro	round:9999	alpha:1	beta:0.1	acc: 0.76296 	ari: 0.64454 	nmi: 0.77328
-dbname:muraro	round:9999	alpha:1	beta:0.01	acc: 0.76296 	ari: 0.64454 	nmi: 0.77328
-dbname:muraro	round:9999	alpha:1	beta:0.001	acc: 0.76296 	ari: 0.64454 	nmi: 0.77328
-dbname:muraro	round:9999	alpha:1	beta:0	acc: 0.76296 	ari: 0.64454 	nmi: 0.77328
-
-Seed: 10000
-
-GFM: 1
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.34s
-return df: 0.49s
-Epoch [1/50], Loss: 29.4387Epoch [2/50], Loss: 19.3835Epoch [3/50], Loss: 14.7569Epoch [4/50], Loss: 14.2559Epoch [5/50], Loss: 14.0741Epoch [6/50], Loss: 13.9402Epoch [7/50], Loss: 13.8190Epoch [8/50], Loss: 13.7188Epoch [9/50], Loss: 13.6273Epoch [10/50], Loss: 13.5470Epoch [11/50], Loss: 13.4886Epoch [12/50], Loss: 13.4463Epoch [13/50], Loss: 13.4100Epoch [14/50], Loss: 13.3745Epoch [15/50], Loss: 13.3398Epoch [16/50], Loss: 13.3074Epoch [17/50], Loss: 13.2792Epoch [18/50], Loss: 13.2543Epoch [19/50], Loss: 13.2315Epoch [20/50], Loss: 13.2098Epoch [21/50], Loss: 13.1889Epoch [22/50], Loss: 13.1684Epoch [23/50], Loss: 13.1495Epoch [24/50], Loss: 13.1311Epoch [25/50], Loss: 13.1151Epoch [26/50], Loss: 13.0990Epoch [27/50], Loss: 13.0850Epoch [28/50], Loss: 13.0711Epoch [29/50], Loss: 13.0577Epoch [30/50], Loss: 13.0433Epoch [31/50], Loss: 13.0301Epoch [32/50], Loss: 13.0156Epoch [33/50], Loss: 13.0023Epoch [34/50], Loss: 12.9890Epoch [35/50], Loss: 12.9776Epoch [36/50], Loss: 12.9692Epoch [37/50], Loss: 12.9645Epoch [38/50], Loss: 12.9552Epoch [39/50], Loss: 12.9489Epoch [40/50], Loss: 12.9472Epoch [41/50], Loss: 12.9316Epoch [42/50], Loss: 12.9186Epoch [43/50], Loss: 12.9122Epoch [44/50], Loss: 12.9103Epoch [45/50], Loss: 12.9118Epoch [46/50], Loss: 12.9186Epoch [47/50], Loss: 12.9360Epoch [48/50], Loss: 12.9609Epoch [49/50], Loss: 12.9689Epoch [50/50], Loss: 12.9583
-GFM: 2
-cells:2122 genes:8000
-load data: 0.03s
-calculate: 0.33s
-return df: 0.48s
-Epoch [1/50], Loss: 29.7691Epoch [2/50], Loss: 20.5255Epoch [3/50], Loss: 15.0765Epoch [4/50], Loss: 14.5167Epoch [5/50], Loss: 14.3332Epoch [6/50], Loss: 14.2285Epoch [7/50], Loss: 14.1329Epoch [8/50], Loss: 14.0072Epoch [9/50], Loss: 13.8655Epoch [10/50], Loss: 13.7669Epoch [11/50], Loss: 13.7070Epoch [12/50], Loss: 13.6622Epoch [13/50], Loss: 13.6212Epoch [14/50], Loss: 13.5834Epoch [15/50], Loss: 13.5515Epoch [16/50], Loss: 13.5260Epoch [17/50], Loss: 13.5050Epoch [18/50], Loss: 13.4867Epoch [19/50], Loss: 13.4703Epoch [20/50], Loss: 13.4546Epoch [21/50], Loss: 13.4387Epoch [22/50], Loss: 13.4231Epoch [23/50], Loss: 13.4076Epoch [24/50], Loss: 13.3918Epoch [25/50], Loss: 13.3761Epoch [26/50], Loss: 13.3604Epoch [27/50], Loss: 13.3451Epoch [28/50], Loss: 13.3311Epoch [29/50], Loss: 13.3167Epoch [30/50], Loss: 13.3039Epoch [31/50], Loss: 13.2906Epoch [32/50], Loss: 13.2782Epoch [33/50], Loss: 13.2657Epoch [34/50], Loss: 13.2540Epoch [35/50], Loss: 13.2430Epoch [36/50], Loss: 13.2337Epoch [37/50], Loss: 13.2269Epoch [38/50], Loss: 13.2222Epoch [39/50], Loss: 13.2178Epoch [40/50], Loss: 13.2059Epoch [41/50], Loss: 13.1913Epoch [42/50], Loss: 13.1793Epoch [43/50], Loss: 13.1697Epoch [44/50], Loss: 13.1620Epoch [45/50], Loss: 13.1558Epoch [46/50], Loss: 13.1507Epoch [47/50], Loss: 13.1470Epoch [48/50], Loss: 13.1427Epoch [49/50], Loss: 13.1301Epoch [50/50], Loss: 13.1087
-GFM: 3
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.33s
-return df: 0.49s
-Epoch [1/50], Loss: 30.0303Epoch [2/50], Loss: 20.1083Epoch [3/50], Loss: 15.5150Epoch [4/50], Loss: 14.8360Epoch [5/50], Loss: 14.5928Epoch [6/50], Loss: 14.4501Epoch [7/50], Loss: 14.3109Epoch [8/50], Loss: 14.1692Epoch [9/50], Loss: 14.0614Epoch [10/50], Loss: 13.9904Epoch [11/50], Loss: 13.9409Epoch [12/50], Loss: 13.9017Epoch [13/50], Loss: 13.8659Epoch [14/50], Loss: 13.8303Epoch [15/50], Loss: 13.7965Epoch [16/50], Loss: 13.7663Epoch [17/50], Loss: 13.7390Epoch [18/50], Loss: 13.7140Epoch [19/50], Loss: 13.6901Epoch [20/50], Loss: 13.6670Epoch [21/50], Loss: 13.6451Epoch [22/50], Loss: 13.6235Epoch [23/50], Loss: 13.6038Epoch [24/50], Loss: 13.5851Epoch [25/50], Loss: 13.5683Epoch [26/50], Loss: 13.5520Epoch [27/50], Loss: 13.5374Epoch [28/50], Loss: 13.5229Epoch [29/50], Loss: 13.5100Epoch [30/50], Loss: 13.4966Epoch [31/50], Loss: 13.4844Epoch [32/50], Loss: 13.4720Epoch [33/50], Loss: 13.4614Epoch [34/50], Loss: 13.4492Epoch [35/50], Loss: 13.4390Epoch [36/50], Loss: 13.4283Epoch [37/50], Loss: 13.4218Epoch [38/50], Loss: 13.4161Epoch [39/50], Loss: 13.4154Epoch [40/50], Loss: 13.4180Epoch [41/50], Loss: 13.4183Epoch [42/50], Loss: 13.4082Epoch [43/50], Loss: 13.3920Epoch [44/50], Loss: 13.3790Epoch [45/50], Loss: 13.3728Epoch [46/50], Loss: 13.3695Epoch [47/50], Loss: 13.3700Epoch [48/50], Loss: 13.3714Epoch [49/50], Loss: 13.3661Epoch [50/50], Loss: 13.3518
-GFM: 4
-cells:2122 genes:8000
-load data: 0.04s
-calculate: 0.34s
-return df: 0.50s
-Epoch [1/50], Loss: 29.5872Epoch [2/50], Loss: 20.6036Epoch [3/50], Loss: 14.9306Epoch [4/50], Loss: 14.3111Epoch [5/50], Loss: 14.0994Epoch [6/50], Loss: 13.9608Epoch [7/50], Loss: 13.8290Epoch [8/50], Loss: 13.7009Epoch [9/50], Loss: 13.6052Epoch [10/50], Loss: 13.5411Epoch [11/50], Loss: 13.4960Epoch [12/50], Loss: 13.4614Epoch [13/50], Loss: 13.4310Epoch [14/50], Loss: 13.4014Epoch [15/50], Loss: 13.3711Epoch [16/50], Loss: 13.3418Epoch [17/50], Loss: 13.3150Epoch [18/50], Loss: 13.2912Epoch [19/50], Loss: 13.2698Epoch [20/50], Loss: 13.2500Epoch [21/50], Loss: 13.2316Epoch [22/50], Loss: 13.2138Epoch [23/50], Loss: 13.1972Epoch [24/50], Loss: 13.1808Epoch [25/50], Loss: 13.1655Epoch [26/50], Loss: 13.1501Epoch [27/50], Loss: 13.1362Epoch [28/50], Loss: 13.1221Epoch [29/50], Loss: 13.1089Epoch [30/50], Loss: 13.0956Epoch [31/50], Loss: 13.0826Epoch [32/50], Loss: 13.0691Epoch [33/50], Loss: 13.0554Epoch [34/50], Loss: 13.0409Epoch [35/50], Loss: 13.0266Epoch [36/50], Loss: 13.0124Epoch [37/50], Loss: 12.9981Epoch [38/50], Loss: 12.9841Epoch [39/50], Loss: 12.9716Epoch [40/50], Loss: 12.9587Epoch [41/50], Loss: 12.9488Epoch [42/50], Loss: 12.9383Epoch [43/50], Loss: 12.9311Epoch [44/50], Loss: 12.9237Epoch [45/50], Loss: 12.9247Epoch [46/50], Loss: 12.9271Epoch [47/50], Loss: 12.9210Epoch [48/50], Loss: 12.9135Epoch [49/50], Loss: 12.9065Epoch [50/50], Loss: 12.9081
-GFM: 5
-cells:2122 genes:8000
-load data: 0.03s
-calculate: 0.33s
-return df: 0.49s
-Epoch [1/50], Loss: 29.7667Epoch [2/50], Loss: 19.8770Epoch [3/50], Loss: 15.1504Epoch [4/50], Loss: 14.6408Epoch [5/50], Loss: 14.4648Epoch [6/50], Loss: 14.3526Epoch [7/50], Loss: 14.2450Epoch [8/50], Loss: 14.1118Epoch [9/50], Loss: 13.9752Epoch [10/50], Loss: 13.8803Epoch [11/50], Loss: 13.8207Epoch [12/50], Loss: 13.7770Epoch [13/50], Loss: 13.7382Epoch [14/50], Loss: 13.6994Epoch [15/50], Loss: 13.6639Epoch [16/50], Loss: 13.6345Epoch [17/50], Loss: 13.6105Epoch [18/50], Loss: 13.5901Epoch [19/50], Loss: 13.5721Epoch [20/50], Loss: 13.5551Epoch [21/50], Loss: 13.5383Epoch [22/50], Loss: 13.5215Epoch [23/50], Loss: 13.5047Epoch [24/50], Loss: 13.4878Epoch [25/50], Loss: 13.4710Epoch [26/50], Loss: 13.4545Epoch [27/50], Loss: 13.4385Epoch [28/50], Loss: 13.4230Epoch [29/50], Loss: 13.4077Epoch [30/50], Loss: 13.3929Epoch [31/50], Loss: 13.3780Epoch [32/50], Loss: 13.3640Epoch [33/50], Loss: 13.3493Epoch [34/50], Loss: 13.3349Epoch [35/50], Loss: 13.3208Epoch [36/50], Loss: 13.3082Epoch [37/50], Loss: 13.2977Epoch [38/50], Loss: 13.2897Epoch [39/50], Loss: 13.2809Epoch [40/50], Loss: 13.2722Epoch [41/50], Loss: 13.2646Epoch [42/50], Loss: 13.2541Epoch [43/50], Loss: 13.2468Epoch [44/50], Loss: 13.2436Epoch [45/50], Loss: 13.2404Epoch [46/50], Loss: 13.2397Epoch [47/50], Loss: 13.2413Epoch [48/50], Loss: 13.2362Epoch [49/50], Loss: 13.2218Epoch [50/50], Loss: 13.2033
-
-Round 0
-dbname:muraro	round:10000	alpha:0	beta:1	acc: 0.92319 	ari: 0.91867 	nmi: 0.8819
-dbname:muraro	round:10000	alpha:0.001	beta:1	acc: 0.92319 	ari: 0.91949 	nmi: 0.88118
-dbname:muraro	round:10000	alpha:0.01	beta:1	acc: 0.76673 	ari: 0.68452 	nmi: 0.79517
-dbname:muraro	round:10000	alpha:0.1	beta:1	acc: 0.78652 	ari: 0.69623 	nmi: 0.79525
-dbname:muraro	round:10000	alpha:1	beta:1	acc: 0.78605 	ari: 0.69516 	nmi: 0.79446
-dbname:muraro	round:10000	alpha:1	beta:0.1	acc: 0.78652 	ari: 0.69559 	nmi: 0.79454
-dbname:muraro	round:10000	alpha:1	beta:0.01	acc: 0.78652 	ari: 0.69559 	nmi: 0.79454
-dbname:muraro	round:10000	alpha:1	beta:0.001	acc: 0.78652 	ari: 0.69559 	nmi: 0.79454
-dbname:muraro	round:10000	alpha:1	beta:0	acc: 0.63572 	ari: 0.48462 	nmi: 0.69821
-
-Round 1
-dbname:muraro	round:10000	alpha:0	beta:1	acc: 0.92271 	ari: 0.91742 	nmi: 0.8799
-dbname:muraro	round:10000	alpha:0.001	beta:1	acc: 0.92319 	ari: 0.91949 	nmi: 0.88118
-dbname:muraro	round:10000	alpha:0.01	beta:1	acc: 0.7639 	ari: 0.68284 	nmi: 0.7949
-dbname:muraro	round:10000	alpha:0.1	beta:1	acc: 0.78275 	ari: 0.6929 	nmi: 0.79469
-dbname:muraro	round:10000	alpha:1	beta:1	acc: 0.78558 	ari: 0.69474 	nmi: 0.79439
-dbname:muraro	round:10000	alpha:1	beta:0.1	acc: 0.78558 	ari: 0.6941 	nmi: 0.7937
-dbname:muraro	round:10000	alpha:1	beta:0.01	acc: 0.78558 	ari: 0.6941 	nmi: 0.7937
-dbname:muraro	round:10000	alpha:1	beta:0.001	acc: 0.78558 	ari: 0.6941 	nmi: 0.7937
-dbname:muraro	round:10000	alpha:1	beta:0	acc: 0.78558 	ari: 0.6941 	nmi: 0.7937
-
-Round 2
-dbname:muraro	round:10000	alpha:0	beta:1	acc: 0.92319 	ari: 0.91867 	nmi: 0.8819
-dbname:muraro	round:10000	alpha:0.001	beta:1	acc: 0.92271 	ari: 0.91885 	nmi: 0.87934
-dbname:muraro	round:10000	alpha:0.01	beta:1	acc: 0.75448 	ari: 0.67822 	nmi: 0.79383
-dbname:muraro	round:10000	alpha:0.1	beta:1	acc: 0.76814 	ari: 0.68211 	nmi: 0.7926
-dbname:muraro	round:10000	alpha:1	beta:1	acc: 0.77238 	ari: 0.68228 	nmi: 0.79028
-dbname:muraro	round:10000	alpha:1	beta:0.1	acc: 0.77333 	ari: 0.6823 	nmi: 0.78974
-dbname:muraro	round:10000	alpha:1	beta:0.01	acc: 0.77333 	ari: 0.68163 	nmi: 0.78909
-dbname:muraro	round:10000	alpha:1	beta:0.001	acc: 0.77333 	ari: 0.68163 	nmi: 0.78909
-dbname:muraro	round:10000	alpha:1	beta:0	acc: 0.77333 	ari: 0.68163 	nmi: 0.78909
-=== Job finished at Sun Jun 14 11:10:02 AM CEST 2026 ===
