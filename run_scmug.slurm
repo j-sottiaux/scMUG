@@ -93,8 +93,10 @@ PY
 echo "=== Run scMUG ==="
 cd "${PROJECT_DIR}"
 
-python ablation_blockB.py --dataset muraro \
-    --latents ./outputs/muraro_latents.joblib \
-    --complete ./outputs/muraros_scmug_dmkcn.txt
-
+python ablation_block_c_d.py \
+    --latents-scmug ./outputs/muraro_latents_scmug.joblib \
+    --complete-scmug ./outputs/muraros_scmug.txt \
+    --latents-dmkcn ./outputs/muraro_latents_scmug_dmkcn.joblib \
+    --complete-dmkcn ./outputs/muraros_scmug_dmkcn.txt
+    
 echo "=== Job finished at $(date) ==="
