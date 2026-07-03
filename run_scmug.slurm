@@ -2,7 +2,7 @@
 #SBATCH --job-name=scmug_dmkcn_ablation_c_d_test1
 #SBATCH --output=result_%j.out
 #SBATCH --error=error_%j.err
-#SBATCH --time=12:00:00
+#SBATCH --time=06:00:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=64G
@@ -93,10 +93,11 @@ PY
 echo "=== Run scMUG ==="
 cd "${PROJECT_DIR}"
 
-python ablation_block_c_d.py \
+python ablation_block_c_d_compare.py \
+    --dataset muraro \
     --latents-scmug ./outputs/muraro_latents_scmug.joblib \
-    --complete-scmug ./outputs/muraros_scmug.txt \
     --latents-dmkcn ./outputs/muraro_latents_scmug_dmkcn.joblib \
-    --complete-dmkcn ./outputs/muraros_scmug_dmkcn.txt
+    --outfile ./outputs/ablation_c_d_compare_muraro.tsv \
+    --cluste-number 7
     
 echo "=== Job finished at $(date) ==="
