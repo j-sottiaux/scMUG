@@ -179,4 +179,5 @@ pyrightconfig.json
 
 #other folders
 outputs/
+datasets/
 
