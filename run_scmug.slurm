@@ -3,12 +3,13 @@
 #SBATCH --output=result_%j.out
 #SBATCH --error=error_%j.err
 #SBATCH --time=24:00:00
-#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=64G
 #SBATCH --gpus=L40S:1
 #SBATCH --partition=gpuai
-#SBATCH --mail-type=END,FAIL
+#SBATCH --mail-type=ALL
 #SBATCH --mail-user=julien.sottiaux@univ-lille.fr
 
 export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK:-16}
