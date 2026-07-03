@@ -88,7 +88,9 @@ def spectral_embedding_from_K(
 
     d_eff = int(min(d, A.shape[0] - 1))
     emb = SpectralEmbedding(
-        n_components=d_eff, affinity="precomputed", random_state=seed,
+        n_components=d_eff,
+        affinity="precomputed",
+        random_state=seed,
     ).fit_transform(A)
     if d_eff < d:  # pad only for tiny datasets where d >= n_cells
         emb = np.pad(emb, ((0, 0), (0, d - d_eff)))
@@ -104,8 +106,8 @@ def dmkcn_block_b(
     full_training: bool = True,
     pretrain_epochs: int = 300,
     n_iter: int = 300,
-    lambda1: float = 0.1,   # kernel loss weight   (frozen tuned config)
-    lambda2: float = 1.0,   # clustering loss weight
+    lambda1: float = 0.1,  # kernel loss weight   (frozen tuned config)
+    lambda2: float = 0.0,  # clustering loss weight
     lambda3: float = 0.05,  # ZINB loss weight
     zinb_on_counts: bool = True,
     nonneg: str = "clip",
@@ -125,14 +127,20 @@ def dmkcn_block_b(
         n_clusters=n_clusters,
         encoder_hidden=(500, 500, 2000, 10),
         decoder_hidden=(2000, 500, 500),
-        lambda1=lambda1, lambda2=lambda2, lambda3=lambda3,
+        lambda1=lambda1,
+        lambda2=lambda2,
+        lambda3=lambda3,
         pretrain_epochs=pretrain_epochs,
         n_iter=(n_iter if full_training else 0),
-        lr=1e-4, pretrain_lr=1e-3,
-        min_iter=100, tol=1e-4, update_interval=3,
-        seed=seed, verbose=verbose,
+        lr=1e-4,
+        pretrain_lr=1e-3,
+        min_iter=100,
+        tol=1e-4,
+        update_interval=3,
+        seed=seed,
+        verbose=verbose,
     )
     trainer.fit(data.X_input, X_zinb, data.size_factors)  # no y -> no label leakage
 
-    K = trainer.kernel_representation_        # (n_cells, n_cells)
+    K = trainer.kernel_representation_  # (n_cells, n_cells)
     return spectral_embedding_from_K(K, d=d, seed=seed, nonneg=nonneg)

@@ -1,38 +1,24 @@
-"""Ablation of scMUG blocks C+D as a 2x2 factorial design.
+"""Ablation of scMUG blocks C/D from saved block-B latents.
 
-Questions:
-  Q1: Does scMUG block C/D help, given a fixed block-B representation?
-  Q2: Is the scDMKC representation better than the original scMUG autoencoder representation?
+This script avoids proxy similarities. For every saved latent tensor it rebuilds
+the same matrices used by scMUG.py:
 
-Design:
+  - s_g / mat1: repeated K-means co-clustering via accelerate.get_mat1
+  - s_d / mat2: local density similarity via accelerate.get_mat2
+  - block D: SpectralClustering(affinity="precomputed") on alpha*s_g + beta*s_d
 
-                       | COMPLETE: block C/D | direct spectral: no C/D |
-    scMUG latent B     |        (1)          |          (2)            |
-    scDMKC latent B    |        (3)          |          (4)            |
+Inputs are the joblib files written by scMUG.py with:
+  --block-b autoencoder
+  --block-b dmkcn
 
-Inputs:
-  - COMPLETE cells are read from scMUG-format result .txt files.
-  - Direct cells are computed here from saved latent dumps:
-        concat per-GFM embeddings -> kNN spectral clustering.
+Each joblib is expected to contain a list with one array per seed, where each
+array has shape:
 
-Important caveats:
-  - COMPLETE oracle-best selects alpha/beta using labels; optimistic.
-  - COMPLETE all-configs mean is less optimistic but mixes good and bad alpha/beta values.
-  - Direct spectral is untuned: fixed kNN, no alpha/beta sweep.
-  - scDMKC may also differ by ZINB target choice; isolate separately if needed.
-
-Example:
-    python ablation_block_c_d.py \
-        --latents-scmug ./outputs/muraro_latents_scmug.joblib \
-        --complete-scmug ./outputs/muraros_scmug.txt \
-        --latents-dmkcn ./outputs/muraro_latents_dmkcn.joblib \
-        --complete-dmkcn ./outputs/muraros_scmug_dmkcn.txt \
-        --outfile ./outputs/ablation_block_c_d_summary.tsv
+  (n_cells, n_gfm, latent_dim)
 """
 
 import argparse
 import os
-import re
 from collections import defaultdict
 
 import joblib
@@ -40,33 +26,216 @@ import numpy as np
 from scipy.stats import wilcoxon
 from sklearn.cluster import KMeans, SpectralClustering
 
-from utils import calc_acc, calc_ari, calc_nmi, lab2fac, load_data, preprocess
+from accelerate import get_mat1, get_mat2
+from utils import (
+    calc_acc,
+    calc_ari,
+    calc_nmi,
+    c_kmeans,
+    lab2fac,
+    load_data,
+    preprocess,
+    reducer,
+    set_seed,
+)
 
 
 DEFAULT_SEEDS = "1111,2222,3333,4444,5555,6666,7777,8888,9999,10000"
 
+DEFAULT_ALPHA_BETA = [
+    (0, 1),
+    (0.001, 1),
+    (0.01, 1),
+    (0.1, 1),
+    (1, 1),
+    (1, 0.1),
+    (1, 0.01),
+    (1, 0.001),
+    (1, 0),
+]
 
-def metrics(y, labels):
-    """Return metrics in fixed order: (NMI, ARI, ACC)."""
-    return calc_nmi(y, labels), calc_ari(y, labels), calc_acc(y, labels)
 
-
-def clean_Z(Z):
-    """Convert an embedding to a finite float array."""
+def clean_array(x):
     return np.nan_to_num(
-        np.asarray(Z, dtype=float),
+        np.asarray(x, dtype=float),
         nan=0.0,
         posinf=0.0,
         neginf=0.0,
     )
 
 
-def spectral_direct(Z, n_clusters, knn, seed):
-    """Spectral clustering on a kNN graph of Z, without scMUG s_g/s_d construction."""
-    Z = clean_Z(Z)
+def metrics(y_true, y_pred):
+    return (
+        calc_nmi(y_true, y_pred),
+        calc_ari(y_true, y_pred),
+        calc_acc(y_true, y_pred),
+    )
 
-    if knn >= Z.shape[0]:
-        raise ValueError(f"knn={knn} must be < n_cells={Z.shape[0]}")
+
+def load_latent_list(path, seeds):
+    obj = joblib.load(path)
+
+    if isinstance(obj, dict):
+        for key in ("latents", "latent", "Z", "z", "embeddings", "features"):
+            if key in obj:
+                obj = obj[key]
+                break
+
+    if isinstance(obj, np.ndarray):
+        obj = [obj]
+
+    if not isinstance(obj, (list, tuple)):
+        raise TypeError(
+            f"{path}: expected list/tuple/ndarray/dict of latents, got {type(obj)}"
+        )
+
+    if len(obj) != len(seeds):
+        raise ValueError(
+            f"{path}: contains {len(obj)} latent entries, "
+            f"but {len(seeds)} seeds were provided"
+        )
+
+    out = []
+    for seed, z in zip(seeds, obj):
+        z = np.asarray(z)
+
+        if z.ndim == 2:
+            z = z[:, None, :]
+
+        if z.ndim != 3:
+            raise ValueError(
+                f"{path}, seed {seed}: expected (n_cells, n_gfm, d), got {z.shape}"
+            )
+
+        out.append(clean_array(z))
+
+    return out
+
+
+def build_mat2(latent_val, n_neighbour, red_local):
+    n_sample, n_gfm, _ = latent_val.shape
+
+    if n_neighbour >= n_sample:
+        raise ValueError(f"n_neighbour={n_neighbour} must be < n_cells={n_sample}")
+
+    dist = np.zeros(shape=(n_gfm, n_sample, n_sample))
+
+    for c in range(n_gfm):
+        z = reducer(red_local)(clean_array(latent_val[:, c, :]))
+
+        for i in range(n_sample):
+            for j in range(i + 1, n_sample):
+                dist[c, i, j] = dist[c, j, i] = np.linalg.norm(z[i] - z[j])
+
+    neighbour_dist = np.array(
+        [
+            np.array(
+                [
+                    np.sum(
+                        dis[
+                            i,
+                            np.argpartition(dis[i], n_neighbour + 1)[
+                                1 : n_neighbour + 1
+                            ],
+                        ]
+                    )
+                    / n_neighbour
+                    for i in range(n_sample)
+                ]
+            )
+            for dis in dist
+        ]
+    )
+
+    neighbour_dist_score = (
+        np.array(
+            [
+                np.array(
+                    [
+                        1
+                        / np.log(
+                            np.var(
+                                dis[
+                                    i,
+                                    np.argpartition(dis[i], n_neighbour + 1)[
+                                        1 : n_neighbour + 1
+                                    ],
+                                ]
+                            )
+                            + np.exp(1)
+                        )
+                        for i in range(n_sample)
+                    ]
+                )
+                for dis in dist
+            ]
+        )
+        ** 0.5
+    )
+
+    return get_mat2(n_sample, neighbour_dist, dist, neighbour_dist_score)
+
+
+def build_mat1(latent_val, n_clusters, kmeans_times, red_global, thread_num):
+    n_sample, n_gfm, _ = latent_val.shape
+
+    pred = np.zeros(shape=(kmeans_times, n_gfm, n_sample)).astype(int)
+    score = np.zeros(shape=(kmeans_times, n_gfm, n_sample))
+
+    for c in range(n_gfm):
+        z = clean_array(latent_val[:, c, :]).reshape(n_sample, -1)
+        z = reducer(red_global)(z)
+
+        for t in range(kmeans_times):
+            pred_z, score_z = c_kmeans(
+                z,
+                n_clusters,
+                n_init=10,
+                random_state=None,
+            )
+
+            pred[t, c, :] = pred_z
+            score_z = np.sort(score_z, axis=1)
+
+            denom = score_z[:, 1] + score_z[:, 0]
+            denom = np.where(denom == 0, 1e-12, denom)
+
+            ratio = (score_z[:, 1] - score_z[:, 0]) / denom
+
+            score[t, c, :] = ratio**0.5 / kmeans_times / n_gfm
+
+    mat1 = get_mat1(
+        pred,
+        n_sample,
+        kmeans_times,
+        n_gfm,
+        n_clusters,
+        score,
+        thread_num,
+    )
+
+    mean_mat1 = np.mean(mat1)
+    if mean_mat1 > 1e-12:
+        mat1 = mat1 / mean_mat1
+
+    return mat1
+
+
+def kmeans_concat(latent_val, n_clusters, seed):
+    z = latent_val.reshape(latent_val.shape[0], -1)
+
+    return KMeans(
+        n_clusters=n_clusters,
+        n_init=10,
+        random_state=seed,
+    ).fit_predict(clean_array(z))
+
+
+def spectral_knn_concat(latent_val, n_clusters, knn, seed):
+    z = latent_val.reshape(latent_val.shape[0], -1)
+
+    if knn >= z.shape[0]:
+        raise ValueError(f"knn={knn} must be < n_cells={z.shape[0]}")
 
     return SpectralClustering(
         n_clusters=n_clusters,
@@ -74,223 +243,282 @@ def spectral_direct(Z, n_clusters, knn, seed):
         n_neighbors=knn,
         assign_labels="kmeans",
         random_state=seed,
-    ).fit_predict(Z)
+    ).fit_predict(clean_array(z))
 
 
-def kmeans_direct(Z, n_clusters, seed):
-    """K-means directly on concatenated latent space. Diagnostic baseline only."""
-    return KMeans(
+def spectral_precomputed(mat, n_clusters, seed):
+    mat = clean_array(mat)
+    mat = (mat + mat.T) / 2.0
+    mat = np.clip(mat, 0.0, None)
+
+    return SpectralClustering(
         n_clusters=n_clusters,
-        n_init=10,
         random_state=seed,
-    ).fit_predict(clean_Z(Z))
+        affinity="precomputed",
+        assign_labels="kmeans",
+    ).fit_predict(mat)
 
 
-def parse_complete(path):
-    """Parse a scMUG-format result file.
+def evaluate_arm(arm_name, latents, seeds, y, args, alpha_beta_pairs):
+    rows = []
 
-    Returns:
-        best_by_seed:
-            dict seed -> oracle-best row selected by max NMI.
-        mean_by_seed:
-            dict seed -> mean over all alpha/beta/repeat rows for that seed.
-        allrows:
-            np.ndarray of all rows.
-
-    Row order is always:
-        (NMI, ARI, ACC)
-    """
-    byseed = defaultdict(list)
-
-    pat = re.compile(
-        r"round:(\d+).*?acc:\s*([\d.]+)\s*\tari:\s*([\d.]+)\s*\tnmi:\s*([\d.]+)"
-    )
-
-    with open(path, encoding="utf-8") as f:
-        for line in f:
-            m = pat.search(line)
-            if not m:
-                continue
-
-            seed, acc, ari, nmi = m.groups()
-            byseed[int(seed)].append((float(nmi), float(ari), float(acc)))
-
-    if not byseed:
-        raise ValueError(f"No scMUG-format rows found in {path}")
-
-    best_by_seed = {}
-    mean_by_seed = {}
-
-    for seed, rows in byseed.items():
-        rows_arr = np.asarray(rows, dtype=float)
-        best_by_seed[seed] = tuple(rows_arr[np.argmax(rows_arr[:, 0])])
-        mean_by_seed[seed] = tuple(rows_arr.mean(axis=0))
-
-    allrows = np.asarray([r for rows in byseed.values() for r in rows], dtype=float)
-
-    return best_by_seed, mean_by_seed, allrows
-
-
-def require_seed_coverage(name, d, seeds):
-    missing = sorted(set(seeds) - set(d))
-    extra = sorted(set(d) - set(seeds))
-
-    if missing:
-        raise ValueError(f"{name}: missing seeds {missing}")
-
-    if extra:
-        print(f"[warning] {name}: ignoring extra seeds {extra}")
-
-    return {s: d[s] for s in seeds}
-
-
-def run_direct(latents_path, seeds, y, n_clusters, knn):
-    """Direct spectral and k-means on concatenated GFM embeddings, per seed.
-
-    Returns:
-        spec: dict seed -> (NMI, ARI, ACC)
-        km:   dict seed -> (NMI, ARI, ACC)
-    """
-    latents = joblib.load(latents_path)
-
-    if len(seeds) != len(latents):
-        raise ValueError(
-            f"{latents_path}: {len(latents)} latent dumps but {len(seeds)} seeds"
-        )
-
-    spec = {}
-    km = {}
-
-    for si, lv in enumerate(latents):
-        seed = seeds[si]
-        lv = np.asarray(lv)
-
-        if lv.ndim != 3:
+    for seed, latent_val in zip(seeds, latents):
+        if latent_val.shape[0] != len(y):
             raise ValueError(
-                f"{latents_path}, seed {seed}: expected shape "
-                f"(n_cells, n_gfm, d), got {lv.shape}"
+                f"{arm_name}, seed {seed}: "
+                f"n_cells={latent_val.shape[0]} but len(y)={len(y)}"
             )
 
-        n_cells = lv.shape[0]
+        print(f"[{arm_name}] seed={seed}: direct baselines")
 
-        if len(y) != n_cells:
-            raise ValueError(
-                f"{latents_path}, seed {seed}: labels length {len(y)} "
-                f"!= n_cells {n_cells}"
+        baseline_methods = [
+            ("B_kmeans_concat", kmeans_concat(latent_val, args.cluster_number, seed)),
+            (
+                "B_spectral_knn_concat",
+                spectral_knn_concat(
+                    latent_val,
+                    args.cluster_number,
+                    args.knn,
+                    seed,
+                ),
+            ),
+        ]
+
+        for method, labels in baseline_methods:
+            nmi, ari, acc = metrics(y, labels)
+            rows.append((arm_name, seed, -1, method, np.nan, np.nan, nmi, ari, acc))
+
+        print(f"[{arm_name}] seed={seed}: building mat2/s_d")
+        mat2 = build_mat2(latent_val, args.n_neighbour, args.red_local)
+
+        for repeat_idx in range(args.repeat):
+            print(f"[{arm_name}] seed={seed}: repeat={repeat_idx}, building mat1/s_g")
+
+            set_seed(seed + repeat_idx)
+
+            mat1 = build_mat1(
+                latent_val,
+                n_clusters=args.cluster_number,
+                kmeans_times=args.kmeans_times,
+                red_global=args.red_global,
+                thread_num=args.thread_num,
             )
 
-        Z = lv.reshape(n_cells, -1)
+            for alpha, beta in alpha_beta_pairs:
+                mat = mat1 * alpha + mat2 * beta
 
-        spec[seed] = metrics(
-            y,
-            spectral_direct(Z, n_clusters=n_clusters, knn=knn, seed=seed),
-        )
+                labels = spectral_precomputed(
+                    mat,
+                    args.cluster_number,
+                    seed + repeat_idx,
+                )
 
-        km[seed] = metrics(
-            y,
-            kmeans_direct(Z, n_clusters=n_clusters, seed=seed),
-        )
+                nmi, ari, acc = metrics(y, labels)
 
-    return spec, km
+                if alpha == 0 and beta == 1:
+                    method = "D_spectral_mat2_only"
+                elif alpha == 1 and beta == 0:
+                    method = "C_spectral_mat1_only"
+                else:
+                    method = "CD_spectral_alpha_beta"
 
+                rows.append(
+                    (arm_name, seed, repeat_idx, method, alpha, beta, nmi, ari, acc)
+                )
 
-def dict_mean_std(d):
-    a = np.asarray([d[s] for s in sorted(d)], dtype=float)
-    return a.mean(axis=0), a.std(axis=0)
-
-
-def print_line(name, mean, std=None):
-    if std is None:
-        print(
-            f"  {name:<38} "
-            f"NMI {mean[0]:.4f}       "
-            f"ARI {mean[1]:.4f}       "
-            f"ACC {mean[2]:.4f}"
-        )
-    else:
-        print(
-            f"  {name:<38} "
-            f"NMI {mean[0]:.4f}±{std[0]:.3f}  "
-            f"ARI {mean[1]:.4f}±{std[1]:.3f}  "
-            f"ACC {mean[2]:.4f}±{std[2]:.3f}"
-        )
+    return rows
 
 
-def paired(a_dict, b_dict, label, seeds):
-    """Paired Wilcoxon tests. Delta = a - b."""
-    A = np.asarray([a_dict[s] for s in seeds], dtype=float)
-    B = np.asarray([b_dict[s] for s in seeds], dtype=float)
+def summarise(rows):
+    groups = defaultdict(list)
 
-    parts = []
+    for arm, seed, repeat_idx, method, alpha, beta, nmi, ari, acc in rows:
+        key = (arm, method, alpha, beta)
+        groups[key].append((nmi, ari, acc))
 
-    for i, metric_name in enumerate(["NMI", "ARI", "ACC"]):
-        diff = A[:, i] - B[:, i]
-        wins = int(np.sum(diff > 0))
-        losses = int(np.sum(diff < 0))
-        ties = int(np.sum(diff == 0))
+    summary = []
 
-        try:
-            _, p = wilcoxon(diff)
-        except Exception:
-            p = float("nan")
+    for key, vals in sorted(groups.items(), key=lambda x: str(x[0])):
+        arr = np.asarray(vals, dtype=float)
+        mean = arr.mean(axis=0)
+        std = arr.std(axis=0)
+        summary.append((*key, len(vals), *mean, *std))
 
-        parts.append(
-            f"{metric_name} Δ={diff.mean():+.4f} "
-            f"wins={wins}/{len(diff)} losses={losses} ties={ties} p={p:.3f}"
-        )
-
-    print(f"  {label:<38} " + " | ".join(parts))
+    return summary
 
 
-def write_method_rows(f, arm, method, d, seeds):
-    """Write per-seed method results to TSV."""
-    for seed in seeds:
-        nmi, ari, acc = d[seed]
-        f.write(f"{arm}\t{method}\t{seed}\t{nmi:.6f}\t{ari:.6f}\t{acc:.6f}\n")
+def oracle_best_by_seed(rows, arm, method_prefix="CD_spectral"):
+    by_seed = defaultdict(list)
+
+    for row in rows:
+        r_arm, seed, repeat_idx, method, alpha, beta, nmi, ari, acc = row
+
+        if r_arm == arm and method.startswith(method_prefix):
+            by_seed[seed].append((nmi, ari, acc))
+
+    out = {}
+
+    for seed, vals in by_seed.items():
+        arr = np.asarray(vals, dtype=float)
+        out[seed] = tuple(arr[np.argmax(arr[:, 0])])
+
+    return out
 
 
-def write_paired_rows(f, comparison, a_dict, b_dict, seeds):
-    """Write paired deltas to TSV."""
-    A = np.asarray([a_dict[s] for s in seeds], dtype=float)
-    B = np.asarray([b_dict[s] for s in seeds], dtype=float)
+def method_mean_by_seed(rows, arm, method_name):
+    by_seed = defaultdict(list)
 
-    for i, metric_name in enumerate(["NMI", "ARI", "ACC"]):
+    for row in rows:
+        r_arm, seed, repeat_idx, method, alpha, beta, nmi, ari, acc = row
+
+        if r_arm == arm and method == method_name:
+            by_seed[seed].append((nmi, ari, acc))
+
+    return {
+        seed: tuple(np.asarray(vals, dtype=float).mean(axis=0))
+        for seed, vals in by_seed.items()
+    }
+
+
+def paired_wilcoxon(a, b, seeds):
+    out = []
+
+    A = np.asarray([a[s] for s in seeds], dtype=float)
+    B = np.asarray([b[s] for s in seeds], dtype=float)
+
+    for i, metric in enumerate(["NMI", "ARI", "ACC"]):
         diff = A[:, i] - B[:, i]
 
         try:
             _, p = wilcoxon(diff)
         except Exception:
-            p = float("nan")
+            p = np.nan
 
-        wins = int(np.sum(diff > 0))
-        losses = int(np.sum(diff < 0))
-        ties = int(np.sum(diff == 0))
+        out.append(
+            (
+                metric,
+                diff.mean(),
+                int((diff > 0).sum()),
+                int((diff < 0).sum()),
+                int((diff == 0).sum()),
+                p,
+            )
+        )
 
+    return out
+
+
+def write_outputs(rows, outfile):
+    os.makedirs(os.path.dirname(outfile) or ".", exist_ok=True)
+
+    summary_file = outfile.replace(".tsv", "_summary.tsv")
+
+    with open(outfile, "w", encoding="utf-8") as f:
+        f.write("arm\tseed\trepeat\tmethod\talpha\tbeta\tnmi\tari\tacc\n")
+
+        for row in rows:
+            arm, seed, repeat_idx, method, alpha, beta, nmi, ari, acc = row
+
+            f.write(
+                f"{arm}\t{seed}\t{repeat_idx}\t{method}\t"
+                f"{alpha}\t{beta}\t{nmi:.6f}\t{ari:.6f}\t{acc:.6f}\n"
+            )
+
+    with open(summary_file, "w", encoding="utf-8") as f:
         f.write(
-            f"{comparison}\t{metric_name}\t"
-            f"{diff.mean():.6f}\t{diff.std():.6f}\t"
-            f"{wins}\t{losses}\t{ties}\t{p:.6g}\n"
+            "arm\tmethod\talpha\tbeta\tn\t"
+            "nmi_mean\tari_mean\tacc_mean\t"
+            "nmi_std\tari_std\tacc_std\n"
         )
+
+        for row in summarise(rows):
+            arm, method, alpha, beta, n, nmi_m, ari_m, acc_m, nmi_s, ari_s, acc_s = row
+
+            f.write(
+                f"{arm}\t{method}\t{alpha}\t{beta}\t{n}\t"
+                f"{nmi_m:.6f}\t{ari_m:.6f}\t{acc_m:.6f}\t"
+                f"{nmi_s:.6f}\t{ari_s:.6f}\t{acc_s:.6f}\n"
+            )
+
+    print(f"Wrote per-run results: {outfile}")
+    print(f"Wrote summary results: {summary_file}")
+
+
+def parse_alpha_beta(s):
+    if not s:
+        return DEFAULT_ALPHA_BETA
+
+    pairs = []
+
+    for item in s.split(","):
+        a, b = item.split(":")
+        pairs.append((float(a), float(b)))
+
+    return pairs
 
 
 def main():
-    ap = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
 
-    ap.add_argument("--dataset", default="muraro")
-    ap.add_argument("--latents-scmug", required=True)
-    ap.add_argument("--complete-scmug", required=True)
-    ap.add_argument("--latents-dmkcn", required=True)
-    ap.add_argument("--complete-dmkcn", required=True)
+    parser.add_argument("--dataset", default="muraro", type=str)
 
-    ap.add_argument("--knn", type=int, default=15)
-    ap.add_argument("--seeds", default=DEFAULT_SEEDS)
-    ap.add_argument("--outfile", default="./outputs/ablation_block_c_d_summary.tsv")
+    parser.add_argument(
+        "--cluster_number",
+        "--cluster-number",
+        dest="cluster_number",
+        default=None,
+        type=int,
+    )
 
-    args = ap.parse_args()
+    parser.add_argument("--seeds", default=DEFAULT_SEEDS, type=str)
 
-    seeds = [int(s.strip()) for s in args.seeds.split(",") if s.strip()]
+    parser.add_argument(
+        "--latents-autoencoder",
+        default="./outputs/muraro_latents_autoencoder.joblib",
+    )
+
+    parser.add_argument(
+        "--latents-dmkcn",
+        default="./outputs/muraro_latents_dmkcn.joblib",
+    )
+
+    parser.add_argument(
+        "--outfile",
+        default="./outputs/ablation_block_c_d_muraro.tsv",
+    )
+
+    parser.add_argument("--repeat", default=3, type=int)
+    parser.add_argument("--n_neighbour", default=3, type=int)
+    parser.add_argument("--kmeans_times", default=20, type=int)
+
+    parser.add_argument("--red_global", type=str, default=None)
+    parser.add_argument("--red_local", type=str, default=None)
+
+    parser.add_argument("--thread-num", default=8, type=int)
+
+    parser.add_argument(
+        "--knn",
+        default=15,
+        type=int,
+        help="kNN used only for the direct spectral baseline.",
+    )
+
+    parser.add_argument(
+        "--alpha-beta",
+        default=None,
+        type=str,
+        help="Optional comma-separated alpha:beta list. Default is scMUG's 9 fixed pairs.",
+    )
+
+    args = parser.parse_args()
+
+    seeds = [int(x) for x in args.seeds.split(",")]
+    alpha_beta_pairs = parse_alpha_beta(args.alpha_beta)
 
     expr_df, cell_type = load_data(args.dataset)
+
     adata = preprocess(
         expr_df=expr_df.astype(float),
         cell_type=cell_type,
@@ -298,156 +526,78 @@ def main():
     )
 
     y = lab2fac(adata.obs["cell_type"].to_numpy())
-    n_clusters = len(set(y))
 
-    print(f"{args.dataset}: {n_clusters} types | knn={args.knn} | seeds={len(seeds)}\n")
+    if args.cluster_number is None:
+        args.cluster_number = len(set(y))
 
-    # Direct cells: (2) and (4)
-    spec_s, km_s = run_direct(
-        args.latents_scmug,
-        seeds=seeds,
-        y=y,
-        n_clusters=n_clusters,
-        knn=args.knn,
-    )
-
-    spec_d, km_d = run_direct(
-        args.latents_dmkcn,
-        seeds=seeds,
-        y=y,
-        n_clusters=n_clusters,
-        knn=args.knn,
-    )
-
-    # Complete cells: (1) and (3)
-    best_s, mean_s, all_s = parse_complete(args.complete_scmug)
-    best_d, mean_d, all_d = parse_complete(args.complete_dmkcn)
-
-    best_s = require_seed_coverage("complete-scmug oracle-best", best_s, seeds)
-    mean_s = require_seed_coverage("complete-scmug per-seed mean", mean_s, seeds)
-    best_d = require_seed_coverage("complete-dmkcn oracle-best", best_d, seeds)
-    mean_d = require_seed_coverage("complete-dmkcn per-seed mean", mean_d, seeds)
-
-    print("### 2x2 means over seeds, metric order: NMI / ARI / ACC")
-
-    print("\n[scMUG latent]")
-    print_line("(1) COMPLETE oracle-best/seed", *dict_mean_std(best_s))
-    print_line("    COMPLETE per-seed all-config mean", *dict_mean_std(mean_s))
-    print_line("(2) spectral direct, no C/D", *dict_mean_std(spec_s))
-    print_line("    k-means direct, diagnostic", *dict_mean_std(km_s))
-
-    print("\n[scDMKC latent]")
-    print_line("(3) COMPLETE oracle-best/seed", *dict_mean_std(best_d))
-    print_line("    COMPLETE per-seed all-config mean", *dict_mean_std(mean_d))
-    print_line("(4) spectral direct, no C/D", *dict_mean_std(spec_d))
-    print_line("    k-means direct, diagnostic", *dict_mean_std(km_d))
-
-    print("\n### Overall COMPLETE all-config row means")
-    print_line("scMUG COMPLETE all rows", all_s.mean(axis=0), all_s.std(axis=0))
-    print_line("scDMKC COMPLETE all rows", all_d.mean(axis=0), all_d.std(axis=0))
-
-    print("\n### Paired tests, Wilcoxon, delta = first - second")
-    print("-- Does C/D help? Oracle-best COMPLETE vs direct spectral")
-    paired(best_s, spec_s, "scMUG: COMPLETE oracle - direct", seeds)
-    paired(best_d, spec_d, "scDMKC: COMPLETE oracle - direct", seeds)
-
-    print("-- Does C/D help? Per-seed mean COMPLETE vs direct spectral")
-    paired(mean_s, spec_s, "scMUG: COMPLETE mean - direct", seeds)
-    paired(mean_d, spec_d, "scDMKC: COMPLETE mean - direct", seeds)
-
-    print("-- Is scDMKC representation better? Same column comparisons")
-    paired(spec_d, spec_s, "Direct: scDMKC - scMUG", seeds)
-    paired(best_d, best_s, "COMPLETE oracle: scDMKC - scMUG", seeds)
-    paired(mean_d, mean_s, "COMPLETE mean: scDMKC - scMUG", seeds)
-
-    os.makedirs(os.path.dirname(args.outfile) or ".", exist_ok=True)
-
-    with open(args.outfile, "w", encoding="utf-8") as f:
-        f.write("# Per-seed method results\n")
-        f.write("arm\tmethod\tseed\tnmi\tari\tacc\n")
-
-        write_method_rows(f, "scMUG", "complete_oracle_best", best_s, seeds)
-        write_method_rows(f, "scMUG", "complete_per_seed_mean", mean_s, seeds)
-        write_method_rows(f, "scMUG", "spectral_direct_no_CD", spec_s, seeds)
-        write_method_rows(f, "scMUG", "kmeans_direct_diagnostic", km_s, seeds)
-
-        write_method_rows(f, "scDMKC", "complete_oracle_best", best_d, seeds)
-        write_method_rows(f, "scDMKC", "complete_per_seed_mean", mean_d, seeds)
-        write_method_rows(f, "scDMKC", "spectral_direct_no_CD", spec_d, seeds)
-        write_method_rows(f, "scDMKC", "kmeans_direct_diagnostic", km_d, seeds)
-
-        f.write("\n# Paired comparisons\n")
-        f.write(
-            "comparison\tmetric\tmean_delta\tstd_delta\twins\tlosses\tties\twilcoxon_p\n"
-        )
-
-        write_paired_rows(
-            f,
-            "scMUG_complete_oracle_minus_direct",
-            best_s,
-            spec_s,
-            seeds,
-        )
-        write_paired_rows(
-            f,
-            "scDMKC_complete_oracle_minus_direct",
-            best_d,
-            spec_d,
-            seeds,
-        )
-        write_paired_rows(
-            f,
-            "scMUG_complete_mean_minus_direct",
-            mean_s,
-            spec_s,
-            seeds,
-        )
-        write_paired_rows(
-            f,
-            "scDMKC_complete_mean_minus_direct",
-            mean_d,
-            spec_d,
-            seeds,
-        )
-        write_paired_rows(
-            f,
-            "direct_scDMKC_minus_scMUG",
-            spec_d,
-            spec_s,
-            seeds,
-        )
-        write_paired_rows(
-            f,
-            "complete_oracle_scDMKC_minus_scMUG",
-            best_d,
-            best_s,
-            seeds,
-        )
-        write_paired_rows(
-            f,
-            "complete_mean_scDMKC_minus_scMUG",
-            mean_d,
-            mean_s,
-            seeds,
-        )
-
-    print("\n### Interpretation guide")
     print(
-        "  - COMPLETE oracle-best is optimistic because alpha/beta are selected using labels."
+        f"Dataset: {args.dataset}; n_cells={len(y)}; n_clusters={args.cluster_number}"
     )
-    print(
-        "  - COMPLETE per-seed mean is less optimistic, but averages over weak alpha/beta settings."
-    )
-    print(
-        "  - If scDMKC direct ≈ scDMKC COMPLETE oracle, C/D adds little once scDMKC B is used."
-    )
-    print("  - If scMUG COMPLETE >> scMUG direct but scDMKC COMPLETE ≈ scDMKC direct,")
-    print("    then scDMKC representation makes C/D less necessary.")
-    print(
-        "  - If direct scDMKC > direct scMUG, scDMKC improves the representation independently of C/D."
+    print(f"Alpha/beta pairs: {alpha_beta_pairs}")
+
+    latents_auto = load_latent_list(args.latents_autoencoder, seeds)
+    latents_dmkcn = load_latent_list(args.latents_dmkcn, seeds)
+
+    rows = []
+
+    rows.extend(
+        evaluate_arm(
+            "autoencoder",
+            latents_auto,
+            seeds,
+            y,
+            args,
+            alpha_beta_pairs,
+        )
     )
 
-    print(f"\nSummary written to {args.outfile}")
+    rows.extend(
+        evaluate_arm(
+            "dmkcn",
+            latents_dmkcn,
+            seeds,
+            y,
+            args,
+            alpha_beta_pairs,
+        )
+    )
+
+    write_outputs(rows, args.outfile)
+
+    print("\nPaired sanity checks, delta = first - second")
+
+    for arm in ["autoencoder", "dmkcn"]:
+        best_cd = oracle_best_by_seed(rows, arm)
+        km = method_mean_by_seed(rows, arm, "B_kmeans_concat")
+
+        if set(best_cd) == set(km) == set(seeds):
+            print(f"\n{arm}: oracle best C/D vs B_kmeans_concat")
+
+            for metric, delta, wins, losses, ties, p in paired_wilcoxon(
+                best_cd,
+                km,
+                seeds,
+            ):
+                print(
+                    f"  {metric}: delta={delta:+.4f}; "
+                    f"wins={wins}; losses={losses}; ties={ties}; p={p:.4g}"
+                )
+
+    best_auto = oracle_best_by_seed(rows, "autoencoder")
+    best_dmkcn = oracle_best_by_seed(rows, "dmkcn")
+
+    if set(best_auto) == set(best_dmkcn) == set(seeds):
+        print("\ndmkcn oracle best C/D vs autoencoder oracle best C/D")
+
+        for metric, delta, wins, losses, ties, p in paired_wilcoxon(
+            best_dmkcn,
+            best_auto,
+            seeds,
+        ):
+            print(
+                f"  {metric}: delta={delta:+.4f}; "
+                f"wins={wins}; losses={losses}; ties={ties}; p={p:.4g}"
+            )
 
 
 if __name__ == "__main__":

@@ -1,15 +1,20 @@
 #!/bin/bash
-#SBATCH --job-name=scmug_dmkcn_ablation_c_d_test1
+#SBATCH --job-name=scmug_dmkcn
 #SBATCH --output=result_%j.out
 #SBATCH --error=error_%j.err
-#SBATCH --time=06:00:00
+#SBATCH --time=24:00:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=64G
 #SBATCH --gpus=L40S:1
 #SBATCH --partition=gpuai
-#SBATCH --mail-type=ALL
+#SBATCH --mail-type=END,FAIL
 #SBATCH --mail-user=julien.sottiaux@univ-lille.fr
+
+export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK:-16}
+export MKL_NUM_THREADS=${SLURM_CPUS_PER_TASK:-16}
+export OPENBLAS_NUM_THREADS=${SLURM_CPUS_PER_TASK:-16}
+export NUMEXPR_NUM_THREADS=${SLURM_CPUS_PER_TASK:-16}
 
 set -euo pipefail
 
@@ -90,14 +95,60 @@ cdll.LoadLibrary("gcorr")
 print("gcorr loaded successfully")
 PY
 
-echo "=== Run scMUG ==="
+DATASET="muraro"
+CLUSTER_NUMBER=7
+N_GFM=5
+CUTOFFS="0.14,0.14,0.15,0.14,0.14"
+SEEDS="1111,2222,3333,4444,5555,6666,7777,8888,9999,10000"
+
+REPEAT=3
+KMEANS_TIMES=20
+N_NEIGHBOUR=3
+
+LATENTS_AE="./outputs/${DATASET}_latents_autoencoder.joblib"
+LATENTS_DMKCN="./outputs/${DATASET}_latents_dmkcn.joblib"
+OUTFILE="./outputs/ablation_block_c_d_${DATASET}.tsv"
+
+echo "=== Run scMUG autoencoder block B ==="
 cd "${PROJECT_DIR}"
 
-python ablation_block_c_d_compare.py \
-    --dataset muraro \
-    --latents-scmug ./outputs/muraro_latents_scmug.joblib \
-    --latents-dmkcn ./outputs/muraro_latents_scmug_dmkcn.joblib \
-    --outfile ./outputs/ablation_c_d_compare_muraro.tsv \
-    --cluste-number 7
+python3 scMUG.py \
+    --dataset "${DATASET}" \
+    --cluster_number "${CLUSTER_NUMBER}" \
+    --n_gfm "${N_GFM}" \
+    --cutoffs "${CUTOFFS}" \
+    --seeds "${SEEDS}" \
+    --repeat "${REPEAT}" \
+    --kmeans_times "${KMEANS_TIMES}" \
+    --n_neighbour "${N_NEIGHBOUR}" \
+    --block-b autoencoder \
+    --output-tag autoencoder
+
+echo "=== Run scMUG DMKCN block B ==="
+python3 scMUG.py \
+    --dataset "${DATASET}" \
+    --cluster_number "${CLUSTER_NUMBER}" \
+    --n_gfm "${N_GFM}" \
+    --cutoffs "${CUTOFFS}" \
+    --seeds "${SEEDS}" \
+    --repeat "${REPEAT}" \
+    --kmeans_times "${KMEANS_TIMES}" \
+    --n_neighbour "${N_NEIGHBOUR}" \
+    --block-b dmkcn \
+    --dmkcn-zinb-on-counts \
+    --output-tag dmkcn
     
+echo "=== Run C/D ablation from saved latents ==="
+python3 ablation_block_c_d.py \
+    --dataset "${DATASET}" \
+    --cluster_number "${CLUSTER_NUMBER}" \
+    --seeds "${SEEDS}" \
+    --repeat "${REPEAT}" \
+    --kmeans_times "${KMEANS_TIMES}" \
+    --n_neighbour "${N_NEIGHBOUR}" \
+    --latents-autoencoder "${LATENTS_AE}" \
+    --latents-dmkcn "${LATENTS_DMKCN}" \
+    --outfile "${OUTFILE}" \
+    --thread-num "${SLURM_CPUS_PER_TASK}"
+
 echo "=== Job finished at $(date) ==="

@@ -3,4 +3,4 @@ joblib==1.4.2
 louvain==0.8.2
 locCSN==0.0.12
 omicverse==1.6.10
-
+joblib>=1.3

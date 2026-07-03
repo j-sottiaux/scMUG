@@ -37,7 +37,7 @@ class ScDMKCTrainer:
         kernels=("sigmoid", "cosine", "polynomial", "gaussian"),
         kernel_kwargs: dict | None = None,
         lambda1: float = 0.1,  # kernel loss weight
-        lambda2: float = 1.0,  # clustering loss weight
+        lambda2: float = 0.0,  # clustering loss weight
         lambda3: float = 0.05,  # ZINB loss weight
         alpha: float = 1.0,  # Student-t dof
         pretrain_epochs: int = 300,

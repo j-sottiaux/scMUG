@@ -7,7 +7,42 @@ from torch import optim
 from accelerate import get_mat1, get_mat2
 from sklearn.cluster import SpectralClustering
 
-from dmkcn.integration import dmkcn_block_b
+
+def autoencoder_block_b(adata, gene_list, n_sample, epoch, seed):
+    """Original scMUG block B: ZINB autoencoder per GFM."""
+    set_seed(seed)
+    batchSize = int(max(min(2 ** (n_sample**0.5 // 8 + 1), 64), 4))
+    mask = adata.var_names.isin(gene_list)
+    input_data, target_data = adata.X[:, mask], adata.X[:, mask]
+    input_dim = input_data.shape[1]
+    data_loader = get_data_loader(input_data, target_data, batch_size=batchSize)
+    model = Autoencoder([input_dim, 512, 128, 32]).to(device)
+    criterion = ZINBLoss()
+    optimizer = optim.Adam(model.parameters(), lr=0.0001)
+    train(model, data_loader, epoch, criterion, optimizer)
+    return get_encoded_output(model, data_loader)
+
+
+def dmkcn_adapter_block_b(
+    adata,
+    gene_list,
+    cluster_number,
+    seed,
+    zinb_on_counts=True,
+    full_training=True,
+):
+    """DMKCN replacement for scMUG block B. Imported lazily to keep AE path usable."""
+    from dmkcn.integration import dmkcn_block_b
+
+    return dmkcn_block_b(
+        adata,
+        gene_list,
+        n_clusters=cluster_number,
+        d=32,
+        seed=seed,
+        full_training=full_training,
+        zinb_on_counts=zinb_on_counts,
+    )
 
 
 def run():
@@ -29,21 +64,50 @@ def run():
     parser.add_argument("--kmeans_times", default=20, type=int)
     parser.add_argument("--red_global", type=str)
     parser.add_argument("--red_local", type=str)
+    parser.add_argument(
+        "--block-b",
+        default="dmkcn",
+        choices=["autoencoder", "dmkcn"],
+        help="Block B representation generator. 'autoencoder' is original scMUG; 'dmkcn' is the adapter branch.",
+    )
+    parser.add_argument(
+        "--output-tag",
+        default=None,
+        type=str,
+        help="Suffix used for output files. Defaults to the selected --block-b.",
+    )
+    parser.add_argument(
+        "--dmkcn-zinb-on-counts",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Only for --block-b dmkcn. True uses raw counts as ZINB target; false mirrors scMUG scaled-target behavior.",
+    )
+    parser.add_argument(
+        "--dmkcn-full-training",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Only for --block-b dmkcn. Disable to run DMKCN pretraining only.",
+    )
 
-    dbname = parser.parse_args().dataset
-    seeds = [int(_) for _ in parser.parse_args().seeds.split(",")]
-    repeat = parser.parse_args().repeat
-    n_gfm = parser.parse_args().n_gfm
-    cluster_number = parser.parse_args().cluster_number
-    cutoffs = [float(_) for _ in parser.parse_args().cutoffs.split(",")]
-    epoch = parser.parse_args().epoch
-    n_neighbour = parser.parse_args().n_neighbour
-    kmeans_times = parser.parse_args().kmeans_times
-    red_global = parser.parse_args().red_global
-    red_local = parser.parse_args().red_local
+    args = parser.parse_args()
+
+    dbname = args.dataset
+    seeds = [int(_) for _ in args.seeds.split(",")]
+    repeat = args.repeat
+    n_gfm = args.n_gfm
+    cluster_number = args.cluster_number
+    cutoffs = [float(_) for _ in args.cutoffs.split(",")]
+    epoch = args.epoch
+    n_neighbour = args.n_neighbour
+    kmeans_times = args.kmeans_times
+    red_global = args.red_global
+    red_local = args.red_local
+    block_b = args.block_b
+    output_tag = args.output_tag or block_b
 
     expr_df, cell_type = load_data(dbname)
     print(f"\nDatabase: {dbname}\tCells: {expr_df.shape[0]}\tGenes: {expr_df.shape[1]}")
+    print(f"Block B: {block_b}\tOutput tag: {output_tag}")
     expr_df = expr_df.astype(float)
     adata = preprocess(expr_df=expr_df, cell_type=cell_type, highly_genes=8000)
     y = lab2fac(adata.obs["cell_type"].to_numpy())
@@ -54,7 +118,7 @@ def run():
     predictions = []
     latents = []
     os.makedirs("./outputs", exist_ok=True)
-    f = open(f"./outputs/{dbname}s.txt", "w", encoding="utf-8")
+    f = open(f"./outputs/{dbname}s_{output_tag}.txt", "w", encoding="utf-8")
 
     for seed in seeds:
         print(f"\nSeed: {seed}\n")
@@ -72,15 +136,27 @@ def run():
             gfm = list(gfm & set(adata.var.index))
             gene_list = extend_gfm(adata, gfm, t, d=3)
 
-            set_seed(seed)
-            latent = dmkcn_block_b(
-                adata,
-                gene_list,
-                n_clusters=cluster_number,
-                d=32,
-                seed=seed,
-                full_training=True,
-            )
+            if block_b == "autoencoder":
+                latent = autoencoder_block_b(
+                    adata=adata,
+                    gene_list=gene_list,
+                    n_sample=n_sample,
+                    epoch=epoch,
+                    seed=seed,
+                )
+            elif block_b == "dmkcn":
+                set_seed(seed)
+                latent = dmkcn_adapter_block_b(
+                    adata=adata,
+                    gene_list=gene_list,
+                    cluster_number=cluster_number,
+                    seed=seed,
+                    zinb_on_counts=args.dmkcn_zinb_on_counts,
+                    full_training=args.dmkcn_full_training,
+                )
+            else:
+                raise ValueError(f"Unknown --block-b: {block_b}")
+
             latent = latent.reshape((latent.shape[0], 1, -1))
             if i == 0:
                 latent_val = latent
@@ -181,12 +257,10 @@ def run():
                     )
                     pred[t, c, :] = pred_z
                     score_z = np.sort(score_z, axis=1)
+                    denom = score_z[:, 1] + score_z[:, 0]
+                    denom = np.where(denom == 0, 1e-12, denom)
                     score[t, c, :] = (
-                        (
-                            (score_z[:, 1] - score_z[:, 0])
-                            / (score_z[:, 1] + score_z[:, 0])
-                        )
-                        ** 0.5
+                        ((score_z[:, 1] - score_z[:, 0]) / denom) ** 0.5
                         / kmeans_times
                         / n_gfm
                     )
@@ -225,10 +299,10 @@ def run():
 
     f.close()
     joblib.dump(
-        predictions, f"./outputs/{dbname}_pred_label.joblib"
+        predictions, f"./outputs/{dbname}_pred_label_{output_tag}.joblib"
     )  # predicted labels
     joblib.dump(
-        latents, f"./outputs/{dbname}_latents.joblib"
+        latents, f"./outputs/{dbname}_latents_{output_tag}.joblib"
     )  # latent features for different GFMs
 
 
