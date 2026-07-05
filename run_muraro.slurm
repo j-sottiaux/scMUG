@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=scmug_dmkcn
+#SBATCH --job-name=muraro
 #SBATCH --output=result_%j.out
 #SBATCH --error=error_%j.err
 #SBATCH --time=24:00:00

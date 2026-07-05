@@ -1,20 +1,11 @@
-"""Ablation of scMUG blocks C/D from saved block-B latents.
+"""True ablation of scMUG downstream blocks C/D from saved block-B latents.
 
-This script avoids proxy similarities. For every saved latent tensor it rebuilds
-the same matrices used by scMUG.py:
+This script evaluates only:
+  - no_C: mat2 only + spectral clustering
+  - no_D: mat1 only + spectral clustering
+  - no_CD_direct_spectral: direct spectral clustering on concatenated block-B latent
 
-  - s_g / mat1: repeated K-means co-clustering via accelerate.get_mat1
-  - s_d / mat2: local density similarity via accelerate.get_mat2
-  - block D: SpectralClustering(affinity="precomputed") on alpha*s_g + beta*s_d
-
-Inputs are the joblib files written by scMUG.py with:
-  --block-b autoencoder
-  --block-b dmkcn
-
-Each joblib is expected to contain a list with one array per seed, where each
-array has shape:
-
-  (n_cells, n_gfm, latent_dim)
+Full scMUG / full scMUG-DMKCN must be obtained from scMUG.py, not here.
 """
 
 import argparse
@@ -23,8 +14,7 @@ from collections import defaultdict
 
 import joblib
 import numpy as np
-from scipy.stats import wilcoxon
-from sklearn.cluster import KMeans, SpectralClustering
+from sklearn.cluster import SpectralClustering
 
 from accelerate import get_mat1, get_mat2
 from utils import (
@@ -41,18 +31,6 @@ from utils import (
 
 
 DEFAULT_SEEDS = "1111,2222,3333,4444,5555,6666,7777,8888,9999,10000"
-
-DEFAULT_ALPHA_BETA = [
-    (0, 1),
-    (0.001, 1),
-    (0.01, 1),
-    (0.1, 1),
-    (1, 1),
-    (1, 0.1),
-    (1, 0.01),
-    (1, 0.001),
-    (1, 0),
-]
 
 
 def clean_array(x):
@@ -85,9 +63,7 @@ def load_latent_list(path, seeds):
         obj = [obj]
 
     if not isinstance(obj, (list, tuple)):
-        raise TypeError(
-            f"{path}: expected list/tuple/ndarray/dict of latents, got {type(obj)}"
-        )
+        raise TypeError(f"{path}: expected list/tuple/ndarray/dict, got {type(obj)}")
 
     if len(obj) != len(seeds):
         raise ValueError(
@@ -118,7 +94,7 @@ def build_mat2(latent_val, n_neighbour, red_local):
     if n_neighbour >= n_sample:
         raise ValueError(f"n_neighbour={n_neighbour} must be < n_cells={n_sample}")
 
-    dist = np.zeros(shape=(n_gfm, n_sample, n_sample))
+    dist = np.zeros((n_gfm, n_sample, n_sample))
 
     for c in range(n_gfm):
         z = reducer(red_local)(clean_array(latent_val[:, c, :]))
@@ -179,8 +155,8 @@ def build_mat2(latent_val, n_neighbour, red_local):
 def build_mat1(latent_val, n_clusters, kmeans_times, red_global, thread_num):
     n_sample, n_gfm, _ = latent_val.shape
 
-    pred = np.zeros(shape=(kmeans_times, n_gfm, n_sample)).astype(int)
-    score = np.zeros(shape=(kmeans_times, n_gfm, n_sample))
+    pred = np.zeros((kmeans_times, n_gfm, n_sample)).astype(int)
+    score = np.zeros((kmeans_times, n_gfm, n_sample))
 
     for c in range(n_gfm):
         z = clean_array(latent_val[:, c, :]).reshape(n_sample, -1)
@@ -201,7 +177,6 @@ def build_mat1(latent_val, n_clusters, kmeans_times, red_global, thread_num):
             denom = np.where(denom == 0, 1e-12, denom)
 
             ratio = (score_z[:, 1] - score_z[:, 0]) / denom
-
             score[t, c, :] = ratio**0.5 / kmeans_times / n_gfm
 
     mat1 = get_mat1(
@@ -219,16 +194,6 @@ def build_mat1(latent_val, n_clusters, kmeans_times, red_global, thread_num):
         mat1 = mat1 / mean_mat1
 
     return mat1
-
-
-def kmeans_concat(latent_val, n_clusters, seed):
-    z = latent_val.reshape(latent_val.shape[0], -1)
-
-    return KMeans(
-        n_clusters=n_clusters,
-        n_init=10,
-        random_state=seed,
-    ).fit_predict(clean_array(z))
 
 
 def spectral_knn_concat(latent_val, n_clusters, knn, seed):
@@ -253,13 +218,13 @@ def spectral_precomputed(mat, n_clusters, seed):
 
     return SpectralClustering(
         n_clusters=n_clusters,
-        random_state=seed,
         affinity="precomputed",
         assign_labels="kmeans",
+        random_state=seed,
     ).fit_predict(mat)
 
 
-def evaluate_arm(arm_name, latents, seeds, y, args, alpha_beta_pairs):
+def evaluate_arm(arm_name, latents, seeds, y, args):
     rows = []
 
     for seed, latent_val in zip(seeds, latents):
@@ -269,30 +234,59 @@ def evaluate_arm(arm_name, latents, seeds, y, args, alpha_beta_pairs):
                 f"n_cells={latent_val.shape[0]} but len(y)={len(y)}"
             )
 
-        print(f"[{arm_name}] seed={seed}: direct baselines")
+        print(f"[{arm_name}] seed={seed}: no_CD_direct_spectral")
 
-        baseline_methods = [
-            ("B_kmeans_concat", kmeans_concat(latent_val, args.cluster_number, seed)),
+        labels = spectral_knn_concat(
+            latent_val,
+            args.cluster_number,
+            args.knn,
+            seed,
+        )
+
+        nmi, ari, acc = metrics(y, labels)
+
+        rows.append(
             (
-                "B_spectral_knn_concat",
-                spectral_knn_concat(
-                    latent_val,
-                    args.cluster_number,
-                    args.knn,
-                    seed,
-                ),
-            ),
-        ]
+                arm_name,
+                seed,
+                -1,
+                "no_CD_direct_spectral",
+                np.nan,
+                np.nan,
+                args.red_global,
+                args.red_local,
+                nmi,
+                ari,
+                acc,
+            )
+        )
 
-        for method, labels in baseline_methods:
-            nmi, ari, acc = metrics(y, labels)
-            rows.append((arm_name, seed, -1, method, np.nan, np.nan, nmi, ari, acc))
-
-        print(f"[{arm_name}] seed={seed}: building mat2/s_d")
+        print(f"[{arm_name}] seed={seed}: building mat2 for no_C")
         mat2 = build_mat2(latent_val, args.n_neighbour, args.red_local)
 
+        labels = spectral_precomputed(mat2, args.cluster_number, seed)
+        nmi, ari, acc = metrics(y, labels)
+
+        rows.append(
+            (
+                arm_name,
+                seed,
+                -1,
+                "no_C",
+                0.0,
+                1.0,
+                args.red_global,
+                args.red_local,
+                nmi,
+                ari,
+                acc,
+            )
+        )
+
         for repeat_idx in range(args.repeat):
-            print(f"[{arm_name}] seed={seed}: repeat={repeat_idx}, building mat1/s_g")
+            print(
+                f"[{arm_name}] seed={seed}: repeat={repeat_idx}, building mat1 for no_D"
+            )
 
             set_seed(seed + repeat_idx)
 
@@ -304,27 +298,29 @@ def evaluate_arm(arm_name, latents, seeds, y, args, alpha_beta_pairs):
                 thread_num=args.thread_num,
             )
 
-            for alpha, beta in alpha_beta_pairs:
-                mat = mat1 * alpha + mat2 * beta
+            labels = spectral_precomputed(
+                mat1,
+                args.cluster_number,
+                seed + repeat_idx,
+            )
 
-                labels = spectral_precomputed(
-                    mat,
-                    args.cluster_number,
-                    seed + repeat_idx,
+            nmi, ari, acc = metrics(y, labels)
+
+            rows.append(
+                (
+                    arm_name,
+                    seed,
+                    repeat_idx,
+                    "no_D",
+                    1.0,
+                    0.0,
+                    args.red_global,
+                    args.red_local,
+                    nmi,
+                    ari,
+                    acc,
                 )
-
-                nmi, ari, acc = metrics(y, labels)
-
-                if alpha == 0 and beta == 1:
-                    method = "D_spectral_mat2_only"
-                elif alpha == 1 and beta == 0:
-                    method = "C_spectral_mat1_only"
-                else:
-                    method = "CD_spectral_alpha_beta"
-
-                rows.append(
-                    (arm_name, seed, repeat_idx, method, alpha, beta, nmi, ari, acc)
-                )
+            )
 
     return rows
 
@@ -332,8 +328,21 @@ def evaluate_arm(arm_name, latents, seeds, y, args, alpha_beta_pairs):
 def summarise(rows):
     groups = defaultdict(list)
 
-    for arm, seed, repeat_idx, method, alpha, beta, nmi, ari, acc in rows:
-        key = (arm, method, alpha, beta)
+    for row in rows:
+        (
+            arm,
+            seed,
+            repeat_idx,
+            method,
+            alpha,
+            beta,
+            red_global,
+            red_local,
+            nmi,
+            ari,
+            acc,
+        ) = row
+        key = (arm, method, alpha, beta, red_global, red_local)
         groups[key].append((nmi, ari, acc))
 
     summary = []
@@ -342,70 +351,12 @@ def summarise(rows):
         arr = np.asarray(vals, dtype=float)
         mean = arr.mean(axis=0)
         std = arr.std(axis=0)
-        summary.append((*key, len(vals), *mean, *std))
+        minv = arr.min(axis=0)
+        maxv = arr.max(axis=0)
+
+        summary.append((*key, len(vals), *mean, *std, *minv, *maxv))
 
     return summary
-
-
-def oracle_best_by_seed(rows, arm, method_prefix="CD_spectral"):
-    by_seed = defaultdict(list)
-
-    for row in rows:
-        r_arm, seed, repeat_idx, method, alpha, beta, nmi, ari, acc = row
-
-        if r_arm == arm and method.startswith(method_prefix):
-            by_seed[seed].append((nmi, ari, acc))
-
-    out = {}
-
-    for seed, vals in by_seed.items():
-        arr = np.asarray(vals, dtype=float)
-        out[seed] = tuple(arr[np.argmax(arr[:, 0])])
-
-    return out
-
-
-def method_mean_by_seed(rows, arm, method_name):
-    by_seed = defaultdict(list)
-
-    for row in rows:
-        r_arm, seed, repeat_idx, method, alpha, beta, nmi, ari, acc = row
-
-        if r_arm == arm and method == method_name:
-            by_seed[seed].append((nmi, ari, acc))
-
-    return {
-        seed: tuple(np.asarray(vals, dtype=float).mean(axis=0))
-        for seed, vals in by_seed.items()
-    }
-
-
-def paired_wilcoxon(a, b, seeds):
-    out = []
-
-    A = np.asarray([a[s] for s in seeds], dtype=float)
-    B = np.asarray([b[s] for s in seeds], dtype=float)
-
-    for i, metric in enumerate(["NMI", "ARI", "ACC"]):
-        diff = A[:, i] - B[:, i]
-
-        try:
-            _, p = wilcoxon(diff)
-        except Exception:
-            p = np.nan
-
-        out.append(
-            (
-                metric,
-                diff.mean(),
-                int((diff > 0).sum()),
-                int((diff < 0).sum()),
-                int((diff == 0).sum()),
-                p,
-            )
-        )
-
-    return out
 
 
 def write_outputs(rows, outfile):
@@ -414,47 +365,75 @@ def write_outputs(rows, outfile):
     summary_file = outfile.replace(".tsv", "_summary.tsv")
 
     with open(outfile, "w", encoding="utf-8") as f:
-        f.write("arm\tseed\trepeat\tmethod\talpha\tbeta\tnmi\tari\tacc\n")
+        f.write(
+            "arm\tseed\trepeat\tmethod\talpha\tbeta\t"
+            "red_global\tred_local\tnmi\tari\tacc\n"
+        )
 
         for row in rows:
-            arm, seed, repeat_idx, method, alpha, beta, nmi, ari, acc = row
+            (
+                arm,
+                seed,
+                repeat_idx,
+                method,
+                alpha,
+                beta,
+                red_global,
+                red_local,
+                nmi,
+                ari,
+                acc,
+            ) = row
 
             f.write(
                 f"{arm}\t{seed}\t{repeat_idx}\t{method}\t"
-                f"{alpha}\t{beta}\t{nmi:.6f}\t{ari:.6f}\t{acc:.6f}\n"
+                f"{alpha}\t{beta}\t{red_global}\t{red_local}\t"
+                f"{nmi:.6f}\t{ari:.6f}\t{acc:.6f}\n"
             )
 
     with open(summary_file, "w", encoding="utf-8") as f:
         f.write(
-            "arm\tmethod\talpha\tbeta\tn\t"
+            "arm\tmethod\talpha\tbeta\tred_global\tred_local\tn\t"
             "nmi_mean\tari_mean\tacc_mean\t"
-            "nmi_std\tari_std\tacc_std\n"
+            "nmi_std\tari_std\tacc_std\t"
+            "nmi_min\tari_min\tacc_min\t"
+            "nmi_max\tari_max\tacc_max\n"
         )
 
         for row in summarise(rows):
-            arm, method, alpha, beta, n, nmi_m, ari_m, acc_m, nmi_s, ari_s, acc_s = row
+            (
+                arm,
+                method,
+                alpha,
+                beta,
+                red_global,
+                red_local,
+                n,
+                nmi_m,
+                ari_m,
+                acc_m,
+                nmi_s,
+                ari_s,
+                acc_s,
+                nmi_min,
+                ari_min,
+                acc_min,
+                nmi_max,
+                ari_max,
+                acc_max,
+            ) = row
 
             f.write(
-                f"{arm}\t{method}\t{alpha}\t{beta}\t{n}\t"
+                f"{arm}\t{method}\t{alpha}\t{beta}\t"
+                f"{red_global}\t{red_local}\t{n}\t"
                 f"{nmi_m:.6f}\t{ari_m:.6f}\t{acc_m:.6f}\t"
-                f"{nmi_s:.6f}\t{ari_s:.6f}\t{acc_s:.6f}\n"
+                f"{nmi_s:.6f}\t{ari_s:.6f}\t{acc_s:.6f}\t"
+                f"{nmi_min:.6f}\t{ari_min:.6f}\t{acc_min:.6f}\t"
+                f"{nmi_max:.6f}\t{ari_max:.6f}\t{acc_max:.6f}\n"
             )
 
     print(f"Wrote per-run results: {outfile}")
     print(f"Wrote summary results: {summary_file}")
-
-
-def parse_alpha_beta(s):
-    if not s:
-        return DEFAULT_ALPHA_BETA
-
-    pairs = []
-
-    for item in s.split(","):
-        a, b = item.split(":")
-        pairs.append((float(a), float(b)))
-
-    return pairs
 
 
 def main():
@@ -486,15 +465,15 @@ def main():
 
     parser.add_argument(
         "--outfile",
-        default="./outputs/ablation_block_c_d_muraro.tsv",
+        default="./outputs/ablation_noC_noD_noCD_muraro.tsv",
     )
 
     parser.add_argument("--repeat", default=3, type=int)
     parser.add_argument("--n_neighbour", default=3, type=int)
     parser.add_argument("--kmeans_times", default=20, type=int)
 
-    parser.add_argument("--red_global", type=str, default=None)
-    parser.add_argument("--red_local", type=str, default=None)
+    parser.add_argument("--red_global", type=str, default="umap")
+    parser.add_argument("--red_local", type=str, default="umap")
 
     parser.add_argument("--thread-num", default=8, type=int)
 
@@ -502,20 +481,12 @@ def main():
         "--knn",
         default=15,
         type=int,
-        help="kNN used only for the direct spectral baseline.",
-    )
-
-    parser.add_argument(
-        "--alpha-beta",
-        default=None,
-        type=str,
-        help="Optional comma-separated alpha:beta list. Default is scMUG's 9 fixed pairs.",
+        help="kNN used for no_CD_direct_spectral.",
     )
 
     args = parser.parse_args()
 
     seeds = [int(x) for x in args.seeds.split(",")]
-    alpha_beta_pairs = parse_alpha_beta(args.alpha_beta)
 
     expr_df, cell_type = load_data(args.dataset)
 
@@ -533,7 +504,11 @@ def main():
     print(
         f"Dataset: {args.dataset}; n_cells={len(y)}; n_clusters={args.cluster_number}"
     )
-    print(f"Alpha/beta pairs: {alpha_beta_pairs}")
+
+    print(
+        f"Ablations: no_C, no_D, no_CD_direct_spectral; "
+        f"red_global={args.red_global}; red_local={args.red_local}"
+    )
 
     latents_auto = load_latent_list(args.latents_autoencoder, seeds)
     latents_dmkcn = load_latent_list(args.latents_dmkcn, seeds)
@@ -547,7 +522,6 @@ def main():
             seeds,
             y,
             args,
-            alpha_beta_pairs,
         )
     )
 
@@ -558,46 +532,10 @@ def main():
             seeds,
             y,
             args,
-            alpha_beta_pairs,
         )
     )
 
     write_outputs(rows, args.outfile)
-
-    print("\nPaired sanity checks, delta = first - second")
-
-    for arm in ["autoencoder", "dmkcn"]:
-        best_cd = oracle_best_by_seed(rows, arm)
-        km = method_mean_by_seed(rows, arm, "B_kmeans_concat")
-
-        if set(best_cd) == set(km) == set(seeds):
-            print(f"\n{arm}: oracle best C/D vs B_kmeans_concat")
-
-            for metric, delta, wins, losses, ties, p in paired_wilcoxon(
-                best_cd,
-                km,
-                seeds,
-            ):
-                print(
-                    f"  {metric}: delta={delta:+.4f}; "
-                    f"wins={wins}; losses={losses}; ties={ties}; p={p:.4g}"
-                )
-
-    best_auto = oracle_best_by_seed(rows, "autoencoder")
-    best_dmkcn = oracle_best_by_seed(rows, "dmkcn")
-
-    if set(best_auto) == set(best_dmkcn) == set(seeds):
-        print("\ndmkcn oracle best C/D vs autoencoder oracle best C/D")
-
-        for metric, delta, wins, losses, ties, p in paired_wilcoxon(
-            best_dmkcn,
-            best_auto,
-            seeds,
-        ):
-            print(
-                f"  {metric}: delta={delta:+.4f}; "
-                f"wins={wins}; losses={losses}; ties={ties}; p={p:.4g}"
-            )
 
 
 if __name__ == "__main__":

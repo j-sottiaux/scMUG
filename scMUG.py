@@ -64,6 +64,7 @@ def run():
     parser.add_argument("--kmeans_times", default=20, type=int)
     parser.add_argument("--red_global", type=str)
     parser.add_argument("--red_local", type=str)
+    parser.add_argument("--thread-num", "--thread_num", dest="thread_num", default=8, type=int)
     parser.add_argument(
         "--block-b",
         default="dmkcn",
@@ -104,6 +105,7 @@ def run():
     red_local = args.red_local
     block_b = args.block_b
     output_tag = args.output_tag or block_b
+    thread_num = args.thread_num
 
     expr_df, cell_type = load_data(dbname)
     print(f"\nDatabase: {dbname}\tCells: {expr_df.shape[0]}\tGenes: {expr_df.shape[1]}")
@@ -266,7 +268,7 @@ def run():
                     )
 
             mat1 = get_mat1(
-                pred, n_sample, kmeans_times, n_gfm, cluster_number, score, 8
+                pred, n_sample, kmeans_times, n_gfm, cluster_number, score, thread_num
             )
             mat1 = mat1 / np.mean(mat1)
 

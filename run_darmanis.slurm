@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=scmug_dmkcn
+#SBATCH --job-name=darmanis
 #SBATCH --output=result_%j.out
 #SBATCH --error=error_%j.err
 #SBATCH --time=24:00:00
@@ -96,10 +96,10 @@ cdll.LoadLibrary("gcorr")
 print("gcorr loaded successfully")
 PY
 
-DATASET="muraro"
-CLUSTER_NUMBER=7
-N_GFM=5
-CUTOFFS="0.14,0.14,0.15,0.14,0.14"
+DATASET="darmanis"
+CLUSTER_NUMBER=9
+N_GFM=4
+CUTOFFS="0.14,0.14,0.15,0.14"
 SEEDS="1111,2222,3333,4444,5555,6666,7777,8888,9999,10000"
 
 REPEAT=3
