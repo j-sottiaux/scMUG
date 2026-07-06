@@ -114,18 +114,18 @@ SUMMARY_OUTFILE="./outputs/summary_comparison_${DATASET}.csv"
 echo "=== Run scMUG autoencoder block B ==="
 cd "${PROJECT_DIR}"
 
-python3 scMUG.py \
-    --dataset "${DATASET}" \
-    --cluster_number "${CLUSTER_NUMBER}" \
-    --n_gfm "${N_GFM}" \
-    --cutoffs "${CUTOFFS}" \
-    --seeds "${SEEDS}" \
-    --repeat "${REPEAT}" \
-    --kmeans_times "${KMEANS_TIMES}" \
-    --n_neighbour "${N_NEIGHBOUR}" \
-    --thread-num "${SLURM_CPUS_PER_TASK}" \
-    --block-b autoencoder \
-    --output-tag autoencoder
+# python3 scMUG.py \
+#     --dataset "${DATASET}" \
+#     --cluster_number "${CLUSTER_NUMBER}" \
+#     --n_gfm "${N_GFM}" \
+#     --cutoffs "${CUTOFFS}" \
+#     --seeds "${SEEDS}" \
+#     --repeat "${REPEAT}" \
+#     --kmeans_times "${KMEANS_TIMES}" \
+#     --n_neighbour "${N_NEIGHBOUR}" \
+#     --thread-num "${SLURM_CPUS_PER_TASK}" \
+#     --block-b autoencoder \
+#     --output-tag autoencoder
 
 echo "=== Run scMUG DMKCN block B ==="
 python3 scMUG.py \
@@ -142,30 +142,30 @@ python3 scMUG.py \
     --dmkcn-zinb-on-counts \
     --output-tag dmkcn
     
-echo "=== Run C/D ablation from saved latents ==="
-python3 ablation_block_c_d.py \
-    --dataset "${DATASET}" \
-    --cluster_number "${CLUSTER_NUMBER}" \
-    --seeds "${SEEDS}" \
-    --repeat "${REPEAT}" \
-    --kmeans_times "${KMEANS_TIMES}" \
-    --n_neighbour "${N_NEIGHBOUR}" \
-    --latents-autoencoder "${LATENTS_AE}" \
-    --latents-dmkcn "${LATENTS_DMKCN}" \
-    --outfile "${OUTFILE}" \
-    --thread-num "${SLURM_CPUS_PER_TASK}" \
-    --red_global umap \
-    --red_local umap \
+# echo "=== Run C/D ablation from saved latents ==="
+# python3 ablation_block_c_d.py \
+#     --dataset "${DATASET}" \
+#     --cluster_number "${CLUSTER_NUMBER}" \
+#     --seeds "${SEEDS}" \
+#     --repeat "${REPEAT}" \
+#     --kmeans_times "${KMEANS_TIMES}" \
+#     --n_neighbour "${N_NEIGHBOUR}" \
+#     --latents-autoencoder "${LATENTS_AE}" \
+#     --latents-dmkcn "${LATENTS_DMKCN}" \
+#     --outfile "${OUTFILE}" \
+#     --thread-num "${SLURM_CPUS_PER_TASK}" \
+#     --red_global umap \
+#     --red_local umap \
 
-echo "=== Generate executive summary ==="
-python3 summarize_xp.py \
-  --dataset "${DATASET}" \
-  --full-autoencoder "./outputs/${DATASET}s_autoencoder.txt" \
-  --full-dmkcn "./outputs/${DATASET}s_dmkcn.txt" \
-  --ablation "${OUTFILE}" \
-  --full-alpha 1 \
-  --full-beta 1 \
-  --outfile "${SUMMARY_OUTFILE}" \
-  --significance-outfile "./outputs/significance_${DATASET}.csv"
+# echo "=== Generate executive summary ==="
+# python3 summarize_xp.py \
+#   --dataset "${DATASET}" \
+#   --full-autoencoder "./outputs/${DATASET}s_autoencoder.txt" \
+#   --full-dmkcn "./outputs/${DATASET}s_dmkcn.txt" \
+#   --ablation "${OUTFILE}" \
+#   --full-alpha 1 \
+#   --full-beta 1 \
+#   --outfile "${SUMMARY_OUTFILE}" \
+#   --significance-outfile "./outputs/significance_${DATASET}.csv"
 
 echo "=== Job finished at $(date) ==="

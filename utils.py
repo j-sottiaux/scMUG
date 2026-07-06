@@ -14,14 +14,15 @@ from scipy.sparse import coo_matrix
 from matplotlib import pyplot as plt
 from scipy.optimize import linear_sum_assignment as linear_assignment
 from sklearn.cluster import KMeans
-from sklearn.metrics import adjusted_rand_score, normalized_mutual_info_score, silhouette_score
+from sklearn.metrics import (
+    adjusted_rand_score,
+    normalized_mutual_info_score,
+    silhouette_score,
+)
 
 from gcorr import pearson
 
-warnings.filterwarnings('ignore')
-
-
-
+warnings.filterwarnings("ignore")
 
 
 ########################################## Data Loader ############################################
@@ -42,8 +43,14 @@ def read_h5(file):
     decode = empty_safe(np.vectorize(lambda _x: _x.decode("utf-8")), str)
     f = h5py.File(file, "r")
     exprs_handle = f["exprs"]
-    mat = sp.sparse.csr_matrix((exprs_handle["data"][...], exprs_handle["indices"][...], exprs_handle["indptr"][...]),
-                               shape=exprs_handle["shape"][...])
+    mat = sp.sparse.csr_matrix(
+        (
+            exprs_handle["data"][...],
+            exprs_handle["indices"][...],
+            exprs_handle["indptr"][...],
+        ),
+        shape=exprs_handle["shape"][...],
+    )
     X = np.array(mat.toarray())
     cell_names = decode(f["obs"]["cell_type1"][...])
     genes = decode(f["var_names"][...])
@@ -65,6 +72,7 @@ def read_h5ad(file):
 
 def load_data(filename):
     import os
+
     if filename.count(".") == 0:
         if os.path.exists("%s/%s.h5" % (dataset_dir, filename)):
             return load_data(filename + ".h5")
@@ -96,11 +104,7 @@ def lab2fac(label):
     return y
 
 
-
-
-
 ########################################## Visualization ############################################
-
 
 
 def _show(data, y, title="Channel", mask=None, label=False, red=None):
@@ -129,15 +133,20 @@ def _show(data, y, title="Channel", mask=None, label=False, red=None):
     rows, cols = (2, (N + 1) // 2) if N > 5 else (1, N)
     fig = plt.figure(figsize=(5 * cols, 4 * rows))
 
-    pointSize = max(min(60 // (n**0.5),3),0.3)
+    pointSize = max(min(60 // (n**0.5), 3), 0.3)
 
-    colors = plt.get_cmap('tab20')
+    colors = plt.get_cmap("tab20")
 
     for i, x in enumerate(data):
         ax = fig.add_subplot(rows, cols, i + 1)
         x_reduction = red(x)
         ax.set_title(title[i])
-        ax.scatter(x_reduction[:, 0], x_reduction[:, 1], s=pointSize, color=[colors(i) for i in y])
+        ax.scatter(
+            x_reduction[:, 0],
+            x_reduction[:, 1],
+            s=pointSize,
+            color=[colors(i) for i in y],
+        )
         if label is not None and label:
             if label is True:
                 label = [str(s) for s in range(len(x))]
@@ -149,15 +158,18 @@ def _show(data, y, title="Channel", mask=None, label=False, red=None):
 def reducer(method=None, random_state=0, min_dist=0.1):
     def null_reducer(x):
         return x
+
     if method is None:
         method = "umap"
     if method == "raw":
         return null_reducer
     elif method == "umap":
         import umap
+
         red = umap.UMAP(random_state=random_state, min_dist=min_dist).fit_transform
     elif method == "t_sne":
         from sklearn.manifold import TSNE
+
         red = TSNE(random_state=random_state).fit_transform
     else:
         raise ValueError(f"unknown method {method}!")
@@ -167,18 +179,29 @@ def reducer(method=None, random_state=0, min_dist=0.1):
 def t_sne(data, y, title="Channel", mask=None, random_state=None, label=False):
     if mask is None:
         mask = []
-    return _show(data, y, title=title, mask=mask, label=label,
-                 red=reducer(method="t_sne", random_state=random_state))
+    return _show(
+        data,
+        y,
+        title=title,
+        mask=mask,
+        label=label,
+        red=reducer(method="t_sne", random_state=random_state),
+    )
 
 
-def u_map(data, y, title="Channel", mask=None, random_state=None, label=False, min_dist=0.5):
+def u_map(
+    data, y, title="Channel", mask=None, random_state=None, label=False, min_dist=0.5
+):
     if mask is None:
         mask = []
-    return _show(data, y, title=title, mask=mask, label=label,
-                 red=reducer(method="umap", random_state=random_state, min_dist=min_dist))
-
-
-
+    return _show(
+        data,
+        y,
+        title=title,
+        mask=mask,
+        label=label,
+        red=reducer(method="umap", random_state=random_state, min_dist=min_dist),
+    )
 
 
 ########################################## Benchmark ############################################
@@ -216,7 +239,14 @@ def benchmark(y_true, y_pred, d=True):
 
 def c_kmeans(x, cluster_num, n_init=10, random_state=None):
     from sklearn.cluster import KMeans
-    model = KMeans(n_clusters=cluster_num, init="k-means++", n_init=n_init, random_state=random_state, max_iter=500)
+
+    model = KMeans(
+        n_clusters=cluster_num,
+        init="k-means++",
+        n_init=n_init,
+        random_state=random_state,
+        max_iter=500,
+    )
     score = model.fit_transform(x)
     pred = model.predict(x)
     return pred, score
@@ -242,14 +272,11 @@ def label_trans(y_true, pred):
         pred[:, i] = ind[y_pred, 1]
 
 
-
-
-
 ########################################## General ############################################
 
 
 def mklog(s):
-    print(s, end='\r')
+    print(s, end="\r")
 
 
 def set_seed(seed=1111):
@@ -266,25 +293,30 @@ def preprocess(expr_df, cell_type, highly_genes=8000):
     adata = sc.AnnData(
         X=expr_df.values,
         var=pd.DataFrame(index=expr_df.columns),
-        obs=pd.DataFrame(data={"cell_type": cell_type, "batch": [0] * len(cell_type)},
-                         index=[f"cell_{i}" for i in range(len(cell_type))])
+        obs=pd.DataFrame(
+            data={"cell_type": cell_type, "batch": [0] * len(cell_type)},
+            index=[f"cell_{i}" for i in range(len(cell_type))],
+        ),
     )
     sc.pp.filter_genes(adata, min_counts=1)
     sc.pp.normalize_total(adata, target_sum=1e5)
-    sc.pp.log1p(adata)
-    n_top_genes = highly_genes if type(highly_genes) == int else int(highly_genes * adata.X.shape[1])
+    sc.pp.log1p(adata)  # why ?
+    n_top_genes = (
+        highly_genes
+        if type(highly_genes) == int
+        else int(highly_genes * adata.X.shape[1])
+    )
     sc.pp.highly_variable_genes(adata, n_top_genes=n_top_genes, subset=True)
     sc.pp.scale(adata)
     adata.raw = sc.AnnData(
         X=expr_df[adata.var.index].values.astype(int),
         var=pd.DataFrame(index=adata.var.index),
-        obs=pd.DataFrame(data={"cell_type": cell_type, "batch": [0] * len(cell_type)},
-                         index=[f"cell_{i}" for i in range(len(cell_type))])
+        obs=pd.DataFrame(
+            data={"cell_type": cell_type, "batch": [0] * len(cell_type)},
+            index=[f"cell_{i}" for i in range(len(cell_type))],
+        ),
     )
     return adata
-
-
-
 
 
 ########################################## GFM ############################################
@@ -335,7 +367,9 @@ def get_core_sub_graph_genes(adata, t=0.2):
     ids_map = {i: [] for i in range(n_genes)}
     for i in range(n_genes):
         ids_map[uf.find(i)].append(i)
-    key, size = sorted([[k, len(v)] for k, v in ids_map.items()], key=lambda x: x[1], reverse=True)[0]
+    key, size = sorted(
+        [[k, len(v)] for k, v in ids_map.items()], key=lambda x: x[1], reverse=True
+    )[0]
     print("The size of origin gfm is:", size)
     return adata.var.index[np.array(ids_map[key])].to_numpy()
 
@@ -349,7 +383,9 @@ def extend_gfm(adata, genes, t=0.2, d=3):
     corr = 0.5 * np.log((1 + corr) / (1 - corr))
     old_gene_count = len(genes)
     for i in range(d):
-        mask = np.any(pd.DataFrame(data=corr, index=adata.var.index).loc[genes] >= t, axis=0)
+        mask = np.any(
+            pd.DataFrame(data=corr, index=adata.var.index).loc[genes] >= t, axis=0
+        )
         genes = adata.var.index[mask].to_numpy()
         if old_gene_count == len(genes):
             break
@@ -360,17 +396,23 @@ def extend_gfm(adata, genes, t=0.2, d=3):
 def get_cutoff(adata, gfm, target=3000):
     low, high = 5, 100
     gfm = list(set(gfm) & set(adata.var.index))
-    while low<high:
-        mid = (low+high+1)//2
-        gene_list = extend_gfm(adata, gfm, mid/100)
-        if len(gene_list)>= target:
+    while low < high:
+        mid = (low + high + 1) // 2
+        gene_list = extend_gfm(adata, gfm, mid / 100)
+        if len(gene_list) >= target:
             low = mid
         else:
             high = mid - 1
-    return low/100
+    return low / 100
 
 
 def load_gfm(dbname="muraro", index=0):
     with open(f"./GFMs/{dbname}/{index + 1}.txt", "r") as fg:
-        gfm = set([s.replace("\n", "").replace("\t", "") for s in fg.readlines() if s[0] != "#"])
+        gfm = set(
+            [
+                s.replace("\n", "").replace("\t", "")
+                for s in fg.readlines()
+                if s[0] != "#"
+            ]
+        )
     return list(gfm)
