@@ -64,7 +64,9 @@ def run():
     parser.add_argument("--kmeans_times", default=20, type=int)
     parser.add_argument("--red_global", type=str)
     parser.add_argument("--red_local", type=str)
-    parser.add_argument("--thread-num", "--thread_num", dest="thread_num", default=8, type=int)
+    parser.add_argument(
+        "--thread-num", "--thread_num", dest="thread_num", default=16, type=int
+    )
     parser.add_argument(
         "--block-b",
         default="dmkcn",
@@ -76,6 +78,12 @@ def run():
         default=None,
         type=str,
         help="Suffix used for output files. Defaults to the selected --block-b.",
+    )
+    parser.add_argument(
+        "--output-dir",
+        default="./outputs",
+        type=str,
+        help="Directory where output files are written.",
     )
     parser.add_argument(
         "--dmkcn-zinb-on-counts",
@@ -105,7 +113,10 @@ def run():
     red_local = args.red_local
     block_b = args.block_b
     output_tag = args.output_tag or block_b
+    output_dir = args.output_dir
     thread_num = args.thread_num
+
+    os.makedirs(output_dir, exist_ok=True)
 
     expr_df, cell_type = load_data(dbname)
     print(f"\nDatabase: {dbname}\tCells: {expr_df.shape[0]}\tGenes: {expr_df.shape[1]}")
@@ -119,8 +130,9 @@ def run():
 
     predictions = []
     latents = []
-    os.makedirs("./outputs", exist_ok=True)
-    f = open(f"./outputs/{dbname}s_{output_tag}.txt", "w", encoding="utf-8")
+
+    result_path = os.path.join(output_dir, f"{dbname}s_{output_tag}.txt")
+    f = open(result_path, "w", encoding="utf-8")
 
     for seed in seeds:
         print(f"\nSeed: {seed}\n")
@@ -300,12 +312,16 @@ def run():
                 )
 
     f.close()
+
     joblib.dump(
-        predictions, f"./outputs/{dbname}_pred_label_{output_tag}.joblib"
-    )  # predicted labels
+        predictions,
+        os.path.join(output_dir, f"pred_label_{output_tag}.joblib"),
+    )
+
     joblib.dump(
-        latents, f"./outputs/{dbname}_latents_{output_tag}.joblib"
-    )  # latent features for different GFMs
+        latents,
+        os.path.join(output_dir, f"latents_{output_tag}.joblib"),
+    )
 
 
 if __name__ == "__main__":

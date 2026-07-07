@@ -1,0 +1,53 @@
+baron:
+  cluster_number: 14
+  n_gfm: 4
+  full_alpha: 0.001
+  full_beta: 1
+
+camp1:
+  cluster_number: 7
+  n_gfm: 4
+  full_alpha: 0.1
+  full_beta: 1
+
+camp2:
+  cluster_number: 6
+  n_gfm: 4
+  full_alpha: 0.001
+  full_beta: 1
+
+darmanis:
+  cluster_number: 9
+  n_gfm: 4
+  full_alpha: 0.01
+  full_beta: 1
+
+lake:
+  cluster_number: 16
+  n_gfm: 5
+  full_alpha: 1
+  full_beta: 1
+
+li:
+  cluster_number: 9
+  n_gfm: 3
+  full_alpha: 1
+  full_beta: 1
+
+manno:
+  cluster_number: 7
+  n_gfm: 4
+  full_alpha: 1
+  full_beta: 1
+
+muraro:
+  cluster_number: 9
+  n_gfm: 5
+  full_alpha: 0.001
+  full_beta: 1
+
+yan:
+  cluster_number: 6
+  n_gfm: 4
+  full_alpha: 0.1
+  full_beta: 1

@@ -107,7 +107,7 @@ def dmkcn_block_b(
     pretrain_epochs: int = 300,
     n_iter: int = 300,
     lambda1: float = 0.1,  # kernel loss weight   (frozen tuned config)
-    lambda2: float = 1.0,  # clustering loss weight
+    lambda2: float = 0.0,  # clustering loss weight
     lambda3: float = 0.05,  # ZINB loss weight
     zinb_on_counts: bool = True,
     nonneg: str = "clip",

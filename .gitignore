@@ -180,4 +180,16 @@ pyrightconfig.json
 #other folders
 outputs/
 datasets/
+logs/
+
+# macOS
+.DS_Store
+
+# Editor swap files
+*.swp
+*.swo
+
+# gcorr build artifacts (recompiled by run_experiment.slurm)
+gcorr/gcorr
+gcorr/libgcorr.so
 
