@@ -179,4 +179,8 @@ pyrightconfig.json
 
 #other folders
 outputs/
+logs/
+datasets/
 
+.claude
+.DS_Store
