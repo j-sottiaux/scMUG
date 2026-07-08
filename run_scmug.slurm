@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=xp_all
+#SBATCH --job-name=scmug
 #SBATCH --output=logs/result_%A_%a.out
 #SBATCH --error=logs/error_%A_%a.err
 #SBATCH --time=48:00:00
@@ -153,7 +153,7 @@ cdll.LoadLibrary("gcorr")
 print("gcorr loaded successfully")
 PY
 
-echo "=== Run scMUG autoencoder block B ==="
+echo "=== Run original scMUG (B = autoencoder) ==="
 
 python3 scMUG.py \
     --dataset "${DATASET}" \
@@ -172,52 +172,5 @@ python3 scMUG.py \
     --output-tag ae \
     --output-dir "${DATASET_OUTDIR}"
 
-echo "=== Run scMUG DMKCN block B ==="
-
-python3 scMUG.py \
-    --dataset "${DATASET}" \
-    --cluster_number "${CLUSTER_NUMBER}" \
-    --n_gfm "${N_GFM}" \
-    --cutoffs "${CUTOFFS}" \
-    --seeds "${SEEDS}" \
-    --repeat "${REPEAT}" \
-    --epoch "${EPOCH}" \
-    --kmeans_times "${KMEANS_TIMES}" \
-    --n_neighbour "${N_NEIGHBOUR}" \
-    --thread-num "${SLURM_CPUS_PER_TASK}" \
-    --red_global "${RED_GLOBAL}" \
-    --red_local "${RED_LOCAL}" \
-    --block-b dmkcn \
-    --output-tag dmkcn \
-    --dmkcn-zinb-on-counts \
-    --output-dir "${DATASET_OUTDIR}"
-
-echo "=== Run C/D ablation from saved latents ==="
-
-python3 ablation_block_c_d.py \
-    --dataset "${DATASET}" \
-    --cluster_number "${CLUSTER_NUMBER}" \
-    --seeds "${SEEDS}" \
-    --repeat "${REPEAT}" \
-    --kmeans_times "${KMEANS_TIMES}" \
-    --n_neighbour "${N_NEIGHBOUR}" \
-    --latents-autoencoder "${LATENTS_AE}" \
-    --latents-dmkcn "${LATENTS_DMKCN}" \
-    --outfile "${OUTFILE}" \
-    --thread-num "${SLURM_CPUS_PER_TASK}" \
-    --red_global "${RED_GLOBAL}" \
-    --red_local "${RED_LOCAL}"
-
-echo "=== Generate executive summary ==="
-
-python3 summarize_xp.py \
-  --dataset "${DATASET}" \
-  --full-autoencoder "${DATASET_OUTDIR}/${DATASET}s_ae.txt" \
-  --full-dmkcn "${DATASET_OUTDIR}/${DATASET}s_dmkcn.txt" \
-  --ablation "${OUTFILE}" \
-  --full-alpha "${FULL_ALPHA}" \
-  --full-beta "${FULL_BETA}" \
-  --outfile "${SUMMARY_OUTFILE}" \
-  --significance-outfile "${SIGNIFICANCE_OUTFILE}"
 
 echo "=== Job finished for ${DATASET} at $(date) ==="
