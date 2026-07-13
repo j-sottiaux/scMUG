@@ -72,7 +72,8 @@ class ZINBHead(nn.Module):
 
     def forward(self, x_prime: torch.Tensor):
         pi = torch.sigmoid(self.pi(x_prime))
-        # clamp before exp for numerical stability (MeanAct / DispAct in scDeepCluster)
-        mu = torch.clamp(torch.exp(self.mu(x_prime)), min=1e-5, max=1e6)
+        # Clamp before exp so large logits cannot overflow before the mean cap.
+        mu_logit = torch.clamp(self.mu(x_prime), min=-11.5, max=13.8)
+        mu = torch.exp(mu_logit)
         theta = torch.clamp(F.softplus(self.theta(x_prime)), min=1e-4, max=1e4)
         return pi, mu, theta

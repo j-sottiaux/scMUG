@@ -1,11 +1,25 @@
-"""True ablation of scMUG downstream blocks C/D from saved block-B latents.
+"""Ablate scMUG downstream blocks C and D from saved block-B latents.
 
-This script evaluates only:
-  - no_C: mat2 only + spectral clustering
-  - no_D: mat1 only + spectral clustering
-  - no_CD_direct_spectral: direct spectral clustering on concatenated block-B latent
+Definitions used here:
+  - block C: construction of the scMUG cell-cell affinity from block-B latents
+             (global mat1 + local-density mat2).
+  - block D: final spectral clustering on the block-C affinity.
 
-Full scMUG / full scMUG-DMKCN must be obtained from scMUG.py, not here.
+The previous labels "no_C = mat2 only" and "no_D = mat1 only" confounded C's
+internal components with the downstream clustering block. This script separates
+those axes:
+  - C_full_D_spectral: recomputed full downstream path, for QC.
+  - C_global_only_D_spectral: C local-density component removed.
+  - C_local_only_D_spectral: C global-distribution component removed.
+  - no_C_D_spectral_C_input_knn: C removed, D kept as spectral clustering on a
+                                 direct kNN affinity built from the same reduced
+                                 per-GFM representations consumed by C.
+  - C_full_no_D_kmeans_rows: C kept, D replaced by k-means on affinity rows.
+  - no_C_no_D_kmeans_C_input: C and D removed; k-means on the same reduced
+                              per-GFM representations consumed by C.
+
+Full scMUG / full scMUG-DMKCN should still be obtained from scMUG.py; the
+recomputed full arm here is a paired sanity check using the saved latents.
 """
 
 import argparse
@@ -14,9 +28,12 @@ from collections import defaultdict
 
 import joblib
 import numpy as np
+from scipy import sparse
 from sklearn.cluster import SpectralClustering
+from sklearn.neighbors import kneighbors_graph
+from sklearn.preprocessing import StandardScaler
 
-from accelerate import get_mat1, get_mat2
+from accelerate import get_mat1, get_mat1_job, get_mat2
 from utils import (
     calc_acc,
     calc_ari,
@@ -179,15 +196,27 @@ def build_mat1(latent_val, n_clusters, kmeans_times, red_global, thread_num):
             ratio = (score_z[:, 1] - score_z[:, 0]) / denom
             score[t, c, :] = ratio**0.5 / kmeans_times / n_gfm
 
-    mat1 = get_mat1(
-        pred,
-        n_sample,
-        kmeans_times,
-        n_gfm,
-        n_clusters,
-        score,
-        thread_num,
-    )
+    if thread_num <= 1:
+        mat1 = get_mat1_job(
+            pred,
+            n_sample,
+            kmeans_times,
+            n_gfm,
+            n_clusters,
+            score,
+            1,
+            0,
+        )
+    else:
+        mat1 = get_mat1(
+            pred,
+            n_sample,
+            kmeans_times,
+            n_gfm,
+            n_clusters,
+            score,
+            thread_num,
+        )
 
     mean_mat1 = np.mean(mat1)
     if mean_mat1 > 1e-12:
@@ -196,19 +225,45 @@ def build_mat1(latent_val, n_clusters, kmeans_times, red_global, thread_num):
     return mat1
 
 
-def spectral_knn_concat(latent_val, n_clusters, knn, seed):
-    z = latent_val.reshape(latent_val.shape[0], -1)
+def concat_block_c_inputs(latent_val, red_global, red_local):
+    """Return cells x features exposed to block C, concatenated across GFMs.
 
-    if knn >= z.shape[0]:
-        raise ValueError(f"knn={knn} must be < n_cells={z.shape[0]}")
+    scMUG's block C does not consume the high-dimensional B latents directly: it
+    reduces each GFM separately before building mat1 and mat2. For a fair C+D
+    ablation, direct clustering uses those same reduced per-GFM views. If the
+    global and local reducers differ, both views are concatenated.
+    """
+    n_sample, n_gfm, _ = latent_val.shape
+    features = []
 
-    return SpectralClustering(
-        n_clusters=n_clusters,
-        affinity="nearest_neighbors",
+    reducer_names = [red_global]
+    if red_local != red_global:
+        reducer_names.append(red_local)
+
+    for reducer_name in reducer_names:
+        red = reducer(reducer_name)
+        for c in range(n_gfm):
+            z = clean_array(latent_val[:, c, :]).reshape(n_sample, -1)
+            features.append(clean_array(red(z)))
+
+    return StandardScaler().fit_transform(np.concatenate(features, axis=1))
+
+
+def direct_knn_affinity(features, knn):
+    """Direct affinity from block-C input features, used when C is removed."""
+    if knn >= features.shape[0]:
+        raise ValueError(f"direct knn={knn} must be < n_cells={features.shape[0]}")
+
+    graph = kneighbors_graph(
+        features,
         n_neighbors=knn,
-        assign_labels="kmeans",
-        random_state=seed,
-    ).fit_predict(clean_array(z))
+        mode="connectivity",
+        include_self=False,
+    )
+    graph = graph.maximum(graph.T)
+    affinity = graph.toarray() if sparse.issparse(graph) else np.asarray(graph)
+    np.fill_diagonal(affinity, 1.0)
+    return affinity.astype(float)
 
 
 def spectral_precomputed(mat, n_clusters, seed):
@@ -224,6 +279,61 @@ def spectral_precomputed(mat, n_clusters, seed):
     ).fit_predict(mat)
 
 
+def kmeans_features(x, n_clusters, seed, n_init):
+    x = clean_array(x)
+    x = StandardScaler().fit_transform(x)
+    labels, _ = c_kmeans(
+        x,
+        n_clusters,
+        n_init=n_init,
+        random_state=seed,
+    )
+    return labels
+
+
+def kmeans_affinity_rows(mat, n_clusters, seed, n_init):
+    """Replacement for block D: cluster cells by their C-affinity profiles."""
+    mat = clean_array(mat)
+    mat = (mat + mat.T) / 2.0
+    mat = np.clip(mat, 0.0, None)
+    return kmeans_features(mat, n_clusters, seed, n_init)
+
+
+def append_result(
+    rows,
+    arm_name,
+    seed,
+    repeat_idx,
+    method,
+    alpha,
+    beta,
+    c_mode,
+    d_mode,
+    red_global,
+    red_local,
+    y,
+    labels,
+):
+    nmi, ari, acc = metrics(y, labels)
+    rows.append(
+        (
+            arm_name,
+            seed,
+            repeat_idx,
+            method,
+            alpha,
+            beta,
+            c_mode,
+            d_mode,
+            red_global,
+            red_local,
+            nmi,
+            ari,
+            acc,
+        )
+    )
+
+
 def evaluate_arm(arm_name, latents, seeds, y, args):
     rows = []
 
@@ -234,58 +344,18 @@ def evaluate_arm(arm_name, latents, seeds, y, args):
                 f"n_cells={latent_val.shape[0]} but len(y)={len(y)}"
             )
 
-        print(f"[{arm_name}] seed={seed}: no_CD_direct_spectral")
-
-        labels = spectral_knn_concat(
-            latent_val,
-            args.cluster_number,
-            args.knn,
-            seed,
-        )
-
-        nmi, ari, acc = metrics(y, labels)
-
-        rows.append(
-            (
-                arm_name,
-                seed,
-                -1,
-                "no_CD_direct_spectral",
-                np.nan,
-                np.nan,
-                args.red_global,
-                args.red_local,
-                nmi,
-                ari,
-                acc,
-            )
-        )
-
-        print(f"[{arm_name}] seed={seed}: building mat2 for no_C")
+        print(f"[{arm_name}] seed={seed}: building C-local mat2")
         mat2 = build_mat2(latent_val, args.n_neighbour, args.red_local)
-
-        labels = spectral_precomputed(mat2, args.cluster_number, seed)
-        nmi, ari, acc = metrics(y, labels)
-
-        rows.append(
-            (
-                arm_name,
-                seed,
-                -1,
-                "no_C",
-                0.0,
-                1.0,
-                args.red_global,
-                args.red_local,
-                nmi,
-                ari,
-                acc,
-            )
+        direct_features = concat_block_c_inputs(
+            latent_val,
+            args.red_global,
+            args.red_local,
         )
+        direct_affinity = direct_knn_affinity(direct_features, args.direct_knn)
 
         for repeat_idx in range(args.repeat):
             print(
-                f"[{arm_name}] seed={seed}: repeat={repeat_idx}, building mat1 for no_D"
+                f"[{arm_name}] seed={seed}: repeat={repeat_idx}, building C-global mat1"
             )
 
             set_seed(seed + repeat_idx)
@@ -298,29 +368,90 @@ def evaluate_arm(arm_name, latents, seeds, y, args):
                 thread_num=args.thread_num,
             )
 
-            labels = spectral_precomputed(
-                mat1,
-                args.cluster_number,
-                seed + repeat_idx,
-            )
+            mat_full = args.full_alpha * mat1 + args.full_beta * mat2
 
-            nmi, ari, acc = metrics(y, labels)
-
-            rows.append(
+            protocol = [
                 (
+                    "C_full_D_spectral",
+                    args.full_alpha,
+                    args.full_beta,
+                    "full",
+                    "spectral_precomputed",
+                    lambda s: spectral_precomputed(mat_full, args.cluster_number, s),
+                ),
+                (
+                    "C_global_only_D_spectral",
+                    1.0,
+                    0.0,
+                    "global_only",
+                    "spectral_precomputed",
+                    lambda s: spectral_precomputed(mat1, args.cluster_number, s),
+                ),
+                (
+                    "C_local_only_D_spectral",
+                    0.0,
+                    1.0,
+                    "local_only",
+                    "spectral_precomputed",
+                    lambda s: spectral_precomputed(mat2, args.cluster_number, s),
+                ),
+                (
+                    "no_C_D_spectral_C_input_knn",
+                    np.nan,
+                    np.nan,
+                    "direct_knn_from_C_input",
+                    "spectral_precomputed",
+                    lambda s: spectral_precomputed(
+                        direct_affinity,
+                        args.cluster_number,
+                        s,
+                    ),
+                ),
+                (
+                    "C_full_no_D_kmeans_rows",
+                    args.full_alpha,
+                    args.full_beta,
+                    "full",
+                    "kmeans_affinity_rows",
+                    lambda s: kmeans_affinity_rows(
+                        mat_full,
+                        args.cluster_number,
+                        s,
+                        args.direct_kmeans_n_init,
+                    ),
+                ),
+                (
+                    "no_C_no_D_kmeans_C_input",
+                    np.nan,
+                    np.nan,
+                    "direct_C_input",
+                    "kmeans_features",
+                    lambda s: kmeans_features(
+                        direct_features,
+                        args.cluster_number,
+                        s,
+                        args.direct_kmeans_n_init,
+                    ),
+                ),
+            ]
+
+            for method, alpha, beta, c_mode, d_mode, runner in protocol:
+                labels = runner(seed + repeat_idx)
+                append_result(
+                    rows,
                     arm_name,
                     seed,
                     repeat_idx,
-                    "no_D",
-                    1.0,
-                    0.0,
+                    method,
+                    alpha,
+                    beta,
+                    c_mode,
+                    d_mode,
                     args.red_global,
                     args.red_local,
-                    nmi,
-                    ari,
-                    acc,
+                    y,
+                    labels,
                 )
-            )
 
     return rows
 
@@ -336,13 +467,15 @@ def summarise(rows):
             method,
             alpha,
             beta,
+            c_mode,
+            d_mode,
             red_global,
             red_local,
             nmi,
             ari,
             acc,
         ) = row
-        key = (arm, method, alpha, beta, red_global, red_local)
+        key = (arm, method, alpha, beta, c_mode, d_mode, red_global, red_local)
         groups[key].append((nmi, ari, acc))
 
     summary = []
@@ -366,7 +499,7 @@ def write_outputs(rows, outfile):
 
     with open(outfile, "w", encoding="utf-8") as f:
         f.write(
-            "arm\tseed\trepeat\tmethod\talpha\tbeta\t"
+            "arm\tseed\trepeat\tmethod\talpha\tbeta\tc_mode\td_mode\t"
             "red_global\tred_local\tnmi\tari\tacc\n"
         )
 
@@ -378,6 +511,8 @@ def write_outputs(rows, outfile):
                 method,
                 alpha,
                 beta,
+                c_mode,
+                d_mode,
                 red_global,
                 red_local,
                 nmi,
@@ -387,13 +522,14 @@ def write_outputs(rows, outfile):
 
             f.write(
                 f"{arm}\t{seed}\t{repeat_idx}\t{method}\t"
-                f"{alpha}\t{beta}\t{red_global}\t{red_local}\t"
+                f"{alpha}\t{beta}\t{c_mode}\t{d_mode}\t"
+                f"{red_global}\t{red_local}\t"
                 f"{nmi:.6f}\t{ari:.6f}\t{acc:.6f}\n"
             )
 
     with open(summary_file, "w", encoding="utf-8") as f:
         f.write(
-            "arm\tmethod\talpha\tbeta\tred_global\tred_local\tn\t"
+            "arm\tmethod\talpha\tbeta\tc_mode\td_mode\tred_global\tred_local\tn\t"
             "nmi_mean\tari_mean\tacc_mean\t"
             "nmi_std\tari_std\tacc_std\t"
             "nmi_min\tari_min\tacc_min\t"
@@ -406,6 +542,8 @@ def write_outputs(rows, outfile):
                 method,
                 alpha,
                 beta,
+                c_mode,
+                d_mode,
                 red_global,
                 red_local,
                 n,
@@ -425,7 +563,7 @@ def write_outputs(rows, outfile):
 
             f.write(
                 f"{arm}\t{method}\t{alpha}\t{beta}\t"
-                f"{red_global}\t{red_local}\t{n}\t"
+                f"{c_mode}\t{d_mode}\t{red_global}\t{red_local}\t{n}\t"
                 f"{nmi_m:.6f}\t{ari_m:.6f}\t{acc_m:.6f}\t"
                 f"{nmi_s:.6f}\t{ari_s:.6f}\t{acc_s:.6f}\t"
                 f"{nmi_min:.6f}\t{ari_min:.6f}\t{acc_min:.6f}\t"
@@ -478,10 +616,33 @@ def main():
     parser.add_argument("--thread-num", default=8, type=int)
 
     parser.add_argument(
+        "--full-alpha",
+        default=1.0,
+        type=float,
+        help="Canonical alpha used for full C = alpha * mat1 + beta * mat2.",
+    )
+
+    parser.add_argument(
+        "--full-beta",
+        default=1.0,
+        type=float,
+        help="Canonical beta used for full C = alpha * mat1 + beta * mat2.",
+    )
+
+    parser.add_argument(
+        "--direct-knn",
         "--knn",
+        dest="direct_knn",
         default=15,
         type=int,
-        help="kNN used for no_CD_direct_spectral.",
+        help="kNN used to build the direct B-latent affinity when block C is removed.",
+    )
+
+    parser.add_argument(
+        "--direct-kmeans-n-init",
+        default=20,
+        type=int,
+        help="n_init used by direct k-means baselines and D replacement.",
     )
 
     args = parser.parse_args()
@@ -506,7 +667,10 @@ def main():
     )
 
     print(
-        f"Ablations: no_C, no_D, no_CD_direct_spectral; "
+        "Ablations: C_full_D_spectral, C_global_only_D_spectral, "
+        "C_local_only_D_spectral, no_C_D_spectral_C_input_knn, "
+        "C_full_no_D_kmeans_rows, no_C_no_D_kmeans_C_input; "
+        f"full_alpha={args.full_alpha}; full_beta={args.full_beta}; "
         f"red_global={args.red_global}; red_local={args.red_local}"
     )
 

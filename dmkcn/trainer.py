@@ -11,11 +11,13 @@ follows a higher-lr pretraining; the pretraining itself is not described).
 The trained estimator exposes three "exit points" used by the scMUG integration
 (minimal-replacement option (a)):
     .latent_                 -> H^(L), the bottleneck embedding (N, d_latent)
-    .kernel_representation_  -> K, the consistent kernel matrix (N, N)
+    .kernel_representation_  -> K, the normalized cell-cell representation (N, N)
     .labels_                 -> final k-means labels on K
 """
 
 from __future__ import annotations
+
+import warnings
 
 import numpy as np
 import torch
@@ -37,17 +39,18 @@ class ScDMKCTrainer:
         kernels=("sigmoid", "cosine", "polynomial", "gaussian"),
         kernel_kwargs: dict | None = None,
         lambda1: float = 0.1,  # kernel loss weight
-        lambda2: float = 0.0,  # clustering loss weight
+        lambda2: float = 1.0,  # clustering loss weight
         lambda3: float = 0.05,  # ZINB loss weight
         alpha: float = 1.0,  # Student-t dof
         pretrain_epochs: int = 300,
         pretrain_lr: float = 1e-3,
-        n_iter: int = 300,
+        n_iter: int = 200,
         lr: float = 1e-4,
         update_interval: int = 1,
         tol: float = 1e-3,
         min_iter: int = 20,
         kmeans_n_init: int = 20,
+        normalize_kernel_features: bool = True,
         device: str | None = None,
         seed: int = 0,
         verbose: bool = True,
@@ -67,6 +70,7 @@ class ScDMKCTrainer:
         self.tol = tol
         self.min_iter = min_iter
         self.kmeans_n_init = kmeans_n_init
+        self.normalize_kernel_features = normalize_kernel_features
         self.seed = seed
         self.verbose = verbose
         if device is not None:
@@ -84,6 +88,69 @@ class ScDMKCTrainer:
         self.labels_ = None
 
     # ---------------------------------------------------------------- helpers
+    @staticmethod
+    def _as_2d_float_array(name, value) -> np.ndarray:
+        if hasattr(value, "toarray"):
+            value = value.toarray()
+        arr = np.asarray(value, dtype=np.float32)
+        if arr.ndim != 2:
+            raise ValueError(f"{name} must be a 2D array, got shape {arr.shape}.")
+        if arr.shape[0] == 0 or arr.shape[1] == 0:
+            raise ValueError(f"{name} must be non-empty, got shape {arr.shape}.")
+        if not np.isfinite(arr).all():
+            raise ValueError(f"{name} contains NaN or infinite values.")
+        return np.ascontiguousarray(arr, dtype=np.float32)
+
+    @staticmethod
+    def _as_size_factors(value, n_cells: int) -> np.ndarray:
+        if hasattr(value, "toarray"):
+            value = value.toarray()
+        sf = np.asarray(value, dtype=np.float32)
+        if sf.ndim == 1:
+            sf = sf.reshape(-1, 1)
+        if sf.shape != (n_cells, 1):
+            raise ValueError(
+                "size_factors must have shape (n_cells, 1), "
+                f"got {sf.shape} for n_cells={n_cells}."
+            )
+        if not np.isfinite(sf).all():
+            raise ValueError("size_factors contains NaN or infinite values.")
+        if np.any(sf <= 0):
+            raise ValueError("size_factors must be strictly positive.")
+        return np.ascontiguousarray(sf, dtype=np.float32)
+
+    def _validate_fit_inputs(self, X_input, X_raw, size_factors):
+        X_arr = self._as_2d_float_array("X_input", X_input)
+        Xr_arr = self._as_2d_float_array("X_raw", X_raw)
+        if X_arr.shape != Xr_arr.shape:
+            raise ValueError(
+                "X_input and X_raw must have the same shape; "
+                f"got {X_arr.shape} and {Xr_arr.shape}."
+            )
+        if np.any(Xr_arr < 0):
+            raise ValueError("X_raw must be non-negative counts for the ZINB loss.")
+        if not np.allclose(Xr_arr, np.rint(Xr_arr), atol=1e-3):
+            warnings.warn(
+                "X_raw is not integer-valued. ZINB is a count likelihood; "
+                "treat this run as an approximation or pass raw counts.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+        n_cells = X_arr.shape[0]
+        if self.n_clusters > n_cells:
+            raise ValueError(
+                f"n_clusters={self.n_clusters} cannot exceed n_cells={n_cells}."
+            )
+        if self.update_interval <= 0:
+            raise ValueError("update_interval must be strictly positive.")
+        if self.kmeans_n_init <= 0:
+            raise ValueError("kmeans_n_init must be strictly positive.")
+        if size_factors is None:
+            sf_arr = np.ones((n_cells, 1), dtype=np.float32)
+        else:
+            sf_arr = self._as_size_factors(size_factors, n_cells)
+        return X_arr, Xr_arr, sf_arr
+
     def _to_tensor(self, a):
         return torch.as_tensor(np.asarray(a, dtype=np.float32), device=self.device)
 
@@ -100,13 +167,10 @@ class ScDMKCTrainer:
         torch.manual_seed(self.seed)
         np.random.seed(self.seed)
 
-        X = self._to_tensor(X_input)  # (N, G) encoder input / recon target
-        Xr = self._to_tensor(X_raw)  # (N, G) raw counts for ZINB
-        sf = (
-            self._to_tensor(size_factors)
-            if size_factors is not None
-            else torch.ones(X.shape[0], 1, device=self.device)
-        )
+        X_arr, Xr_arr, sf_arr = self._validate_fit_inputs(X_input, X_raw, size_factors)
+        X = self._to_tensor(X_arr)  # (N, G) encoder input / recon target
+        Xr = self._to_tensor(Xr_arr)  # (N, G) raw counts for ZINB
+        sf = self._to_tensor(sf_arr)
         n_cells, n_genes = X.shape
 
         self.model = ScDMKC(
@@ -118,6 +182,7 @@ class ScDMKCTrainer:
             kernels=self.kernels,
             kernel_kwargs=self.kernel_kwargs,
             alpha=self.alpha,
+            normalize_kernel_features=self.normalize_kernel_features,
         ).to(self.device)
         zinb = ZINBLoss().to(self.device)
 
@@ -148,6 +213,11 @@ class ScDMKCTrainer:
         with torch.no_grad():
             K0 = self.model(X)["K"].cpu().numpy()
         init_labels = self._kmeans_labels(K0)
+        if np.unique(init_labels).size != self.n_clusters:
+            raise RuntimeError(
+                "Initial K-means did not return all requested clusters; "
+                "check n_clusters, duplicated cells, or K degeneracy."
+            )
         centers = np.stack(
             [K0[init_labels == c].mean(0) for c in range(self.n_clusters)]
         )

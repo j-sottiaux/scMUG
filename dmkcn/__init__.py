@@ -1,4 +1,4 @@
-"""dmkcn: a faithful PyTorch reproduction of scDMKC.
+"""dmkcn: a stabilized PyTorch implementation inspired by scDMKC.
 
 Yao & Ren (2025), "Deep multi-kernel cell clustering for single-cell RNA
 sequencing data", Biochemical Engineering Journal 223, 109877.
@@ -11,9 +11,10 @@ Public API
     evaluate, nmi, ari, acc clustering metrics
 
 The trainer exposes the exit points used by the scMUG integration:
-    trainer.latent_                -> H^(L) bottleneck embedding   (drop-in for
-                                      scMUG block B latent, option (a))
-    trainer.kernel_representation_ -> K, the (N, N) consistent kernel matrix
+    trainer.kernel_representation_ -> K, the (N, N) normalized cell-cell
+                                      representation used for final K-means
+                                      and spectral scMUG integration
+    trainer.latent_                -> H^(L) bottleneck embedding for diagnostics
     trainer.labels_                -> final k-means cluster labels
 """
 

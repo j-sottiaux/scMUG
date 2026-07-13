@@ -2,8 +2,8 @@
 
 Steps:
   1. compute per-cell size factors from the full raw library;
-  2. filter genes expressed with total counts < 1;
-  3. library-size normalisation to to target_sum=1e5, then log1p;
+  2. filter genes expressed in <1% of cells;
+  3. library-size normalisation to the median full-library total, then log1p;
   4. selection of the top ``n_top_genes`` highly variable genes;
   5. per-gene z-score scaling for the encoder input.
 
@@ -64,11 +64,10 @@ def _compute_size_factors_from_full_counts(
 
 def preprocess(
     counts: np.ndarray,
-    n_top_genes: int = 8000,
-    min_counts: int = 1,
+    n_top_genes: int = 1000,
+    min_cell_fraction: float = 0.01,
     use_scanpy: bool = True,
     round_counts: bool = True,
-    normalize_target_sum: float = 1e5,
 ) -> PreprocessedData:
     """Run the scDMKC preprocessing pipeline on a cells x genes count matrix."""
     counts_full = np.asarray(counts, dtype=np.float32)
@@ -83,8 +82,8 @@ def preprocess(
     )
 
     # 2. gene filtering -----------------------------------------------------
-    gene_total_counts = counts_full.sum(axis=0)
-    keep = gene_total_counts >= min_counts
+    nonzero_cells_per_gene = (counts_full > 0).sum(axis=0)
+    keep = nonzero_cells_per_gene > (min_cell_fraction * n_cells)
 
     if not np.any(keep):
         raise ValueError("No genes remain after filtering.")
@@ -93,11 +92,9 @@ def preprocess(
     kept_idx = np.where(keep)[0]
 
     # 3. normalisation using full-library totals ----------------------------
-    cell_totals_for_norm = counts_filt.sum(axis=1, keepdims=True).astype(np.float32)
-    cell_totals_for_norm[cell_totals_for_norm == 0] = 1.0
-    log_norm = np.log1p(
-        normalize_target_sum * counts_filt / cell_totals_for_norm
-    ).astype(np.float32)
+    log_norm = np.log1p(median_total * counts_filt / cell_totals_full).astype(
+        np.float32
+    )
 
     # 4. HVG selection ------------------------------------------------------
     n_top = min(n_top_genes, log_norm.shape[1])
@@ -111,7 +108,7 @@ def preprocess(
             hvg_local = None
         else:
             adata = AnnData(log_norm.copy())
-            sc.pp.highly_variable_genes(adata, n_top_genes=n_top, subset=False)
+            sc.pp.highly_variable_genes(adata, n_top_genes=n_top, flavor="seurat")
             hvg_local = np.where(adata.var["highly_variable"].values)[0]
 
     if hvg_local is None or len(hvg_local) == 0:

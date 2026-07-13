@@ -11,7 +11,7 @@
 #SBATCH --partition=gpuai
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=julien.sottiaux@univ-lille.fr
-#SBATCH --array=1-6%2
+#SBATCH --array=1-5%5
 
 set -euo pipefail
 
@@ -52,17 +52,143 @@ echo "RED_LOCAL: ${RED_LOCAL}"
 SEEDS="1111,2222,3333,4444,5555,6666,7777,8888,9999,10000"
 REPEAT=3
 KMEANS_TIMES=20
-EPOCH=100
+EPOCH=50
 echo "EPOCH: ${EPOCH}"
 
 DATASET_OUTDIR="./outputs/${DATASET}"
-mkdir -p "${DATASET_OUTDIR}"
+RUN_ID="$(date +%Y%m%d_%H%M%S)_job${SLURM_JOB_ID:-local}_task${SLURM_ARRAY_TASK_ID:-0}"
+RUN_LOG_DIR="${DATASET_OUTDIR}/run_logs/${RUN_ID}"
+mkdir -p "${DATASET_OUTDIR}" "${RUN_LOG_DIR}"
+
+RUN_STARTED_JSON="${RUN_LOG_DIR}/run_started.json"
+RUN_EVENTS_JSONL="${RUN_LOG_DIR}/provenance.jsonl"
+export RUN_ID RUN_LOG_DIR RUN_STARTED_JSON RUN_EVENTS_JSONL
+
+exec > >(tee -a "${RUN_LOG_DIR}/stdout.log") 2> >(tee -a "${RUN_LOG_DIR}/stderr.log" >&2)
 
 LATENTS_AE="${DATASET_OUTDIR}/latents_ae.joblib"
 LATENTS_DMKCN="${DATASET_OUTDIR}/latents_dmkcn.joblib"
 OUTFILE="${DATASET_OUTDIR}/ablation_tests.tsv"
 SUMMARY_OUTFILE="${DATASET_OUTDIR}/comparison_summary.csv"
 SIGNIFICANCE_OUTFILE="${DATASET_OUTDIR}/significance.csv"
+METRICS_OUTDIR="${DATASET_OUTDIR}/metrics"
+METRICS_ALL_ALPHA_BETA_OUTDIR="${DATASET_OUTDIR}/metrics_all_alpha_beta"
+
+export DATASET_OUTDIR LATENTS_AE LATENTS_DMKCN OUTFILE SUMMARY_OUTFILE
+export SIGNIFICANCE_OUTFILE METRICS_OUTDIR METRICS_ALL_ALPHA_BETA_OUTDIR
+export SEEDS REPEAT KMEANS_TIMES EPOCH
+
+python3 - <<'PY'
+import json
+import os
+import platform
+import socket
+import subprocess
+import sys
+import time
+
+
+def git_value(args):
+    try:
+        return subprocess.check_output(
+            ["git", *args],
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+    except Exception:
+        return None
+
+
+status = git_value(["status", "--short"])
+payload = {
+    "event": "run_started",
+    "created_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+    "run_id": os.environ["RUN_ID"],
+    "hostname": socket.gethostname(),
+    "platform": platform.platform(),
+    "python": sys.version,
+    "cwd": os.getcwd(),
+    "git": {
+        "commit": git_value(["rev-parse", "HEAD"]),
+        "dirty": bool(status),
+        "status_short": status,
+    },
+    "slurm": {
+        "job_id": os.environ.get("SLURM_JOB_ID"),
+        "array_job_id": os.environ.get("SLURM_ARRAY_JOB_ID"),
+        "array_task_id": os.environ.get("SLURM_ARRAY_TASK_ID"),
+        "cpus_per_task": os.environ.get("SLURM_CPUS_PER_TASK"),
+    },
+    "dataset": os.environ.get("DATASET"),
+    "parameters": {
+        "cluster_number": os.environ.get("CLUSTER_NUMBER"),
+        "n_gfm": os.environ.get("N_GFM"),
+        "cutoffs": os.environ.get("CUTOFFS"),
+        "full_alpha": os.environ.get("FULL_ALPHA"),
+        "full_beta": os.environ.get("FULL_BETA"),
+        "n_neighbour": os.environ.get("N_NEIGHBOUR"),
+        "red_global": os.environ.get("RED_GLOBAL"),
+        "red_local": os.environ.get("RED_LOCAL"),
+        "seeds": os.environ.get("SEEDS"),
+        "repeat": os.environ.get("REPEAT"),
+        "kmeans_times": os.environ.get("KMEANS_TIMES"),
+        "epoch": os.environ.get("EPOCH"),
+    },
+    "paths": {
+        "dataset_outdir": os.environ.get("DATASET_OUTDIR"),
+        "run_log_dir": os.environ.get("RUN_LOG_DIR"),
+        "latents_ae": os.environ.get("LATENTS_AE"),
+        "latents_dmkcn": os.environ.get("LATENTS_DMKCN"),
+        "ablation": os.environ.get("OUTFILE"),
+        "metrics": os.environ.get("METRICS_OUTDIR"),
+        "metrics_all_alpha_beta": os.environ.get("METRICS_ALL_ALPHA_BETA_OUTDIR"),
+        "summary": os.environ.get("SUMMARY_OUTFILE"),
+        "significance": os.environ.get("SIGNIFICANCE_OUTFILE"),
+    },
+}
+
+with open(os.environ["RUN_STARTED_JSON"], "w", encoding="utf-8") as handle:
+    json.dump(payload, handle, sort_keys=True, indent=2)
+
+with open(os.environ["RUN_EVENTS_JSONL"], "a", encoding="utf-8") as handle:
+    handle.write(json.dumps(payload, sort_keys=True) + "\n")
+PY
+
+log_event() {
+    local event="$1"
+    local status="${2:-0}"
+
+    python3 - "${event}" "${status}" <<'PY' || true
+import json
+import os
+import sys
+import time
+
+payload = {
+    "event": sys.argv[1],
+    "status": int(sys.argv[2]),
+    "created_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+    "run_id": os.environ.get("RUN_ID"),
+    "dataset": os.environ.get("DATASET"),
+    "slurm_job_id": os.environ.get("SLURM_JOB_ID"),
+    "slurm_array_task_id": os.environ.get("SLURM_ARRAY_TASK_ID"),
+}
+
+with open(os.environ["RUN_EVENTS_JSONL"], "a", encoding="utf-8") as handle:
+    handle.write(json.dumps(payload, sort_keys=True) + "\n")
+PY
+}
+
+on_exit() {
+    local status="$?"
+    if [ "${status}" -eq 0 ]; then
+        log_event "job_finished" "${status}"
+    else
+        log_event "job_failed" "${status}"
+    fi
+}
+
+trap on_exit EXIT
 
 echo "=== Python environment ==="
 which python3
@@ -81,7 +207,7 @@ PIP_SETUP_STAMP="${PROJECT_DIR}/.slurm_pip_setup.ok"
 (
     flock -x 201
 
-    if [ ! -f "${PIP_SETUP_STAMP}" ] || [ "${PROJECT_DIR}/requirements.txt" -nt "${PIP_SETUP_STAMP}" ] || [ "${PROJECT_DIR}/run_experiment.slurm" -nt "${PIP_SETUP_STAMP}" ]; then
+    if [ ! -f "${PIP_SETUP_STAMP}" ] || [ "${PROJECT_DIR}/requirements.txt" -nt "${PIP_SETUP_STAMP}" ] || [ "${PROJECT_DIR}/run_xp.slurm" -nt "${PIP_SETUP_STAMP}" ]; then
         echo "Task ${SLURM_ARRAY_TASK_ID}: installing Python dependencies"
 
         python3 -m pip install --user --upgrade pip setuptools wheel
@@ -153,7 +279,7 @@ cdll.LoadLibrary("gcorr")
 print("gcorr loaded successfully")
 PY
 
-echo "=== Run scMUG autoencoder block B ==="
+echo "=== Run original scMUG (block B = autoencoder) ==="
 
 python3 scMUG.py \
     --dataset "${DATASET}" \
@@ -172,7 +298,9 @@ python3 scMUG.py \
     --output-tag ae \
     --output-dir "${DATASET_OUTDIR}"
 
-echo "=== Run scMUG DMKCN block B ==="
+
+
+echo "=== Run Plugged scMUG (block B = DMKCN) ==="
 
 python3 scMUG.py \
     --dataset "${DATASET}" \
@@ -192,7 +320,7 @@ python3 scMUG.py \
     --dmkcn-zinb-on-counts \
     --output-dir "${DATASET_OUTDIR}"
 
-echo "=== Run C/D ablation from saved latents ==="
+echo "=== Run ablation tests from saved latents ==="
 
 python3 ablation_block_c_d.py \
     --dataset "${DATASET}" \
@@ -205,12 +333,36 @@ python3 ablation_block_c_d.py \
     --latents-dmkcn "${LATENTS_DMKCN}" \
     --outfile "${OUTFILE}" \
     --thread-num "${SLURM_CPUS_PER_TASK}" \
+    --full-alpha "${FULL_ALPHA}" \
+    --full-beta "${FULL_BETA}" \
     --red_global "${RED_GLOBAL}" \
     --red_local "${RED_LOCAL}"
 
+
+echo "=== Generate scMUG-style metric summaries ==="
+
+python3 xp_metrics.py \
+  --dataset "${DATASET}" \
+  --full-autoencoder "${DATASET_OUTDIR}/${DATASET}s_ae.txt" \
+  --full-dmkcn "${DATASET_OUTDIR}/${DATASET}s_dmkcn.txt" \
+  --ablation "${OUTFILE}" \
+  --full-alpha "${FULL_ALPHA}" \
+  --full-beta "${FULL_BETA}" \
+  --outdir "${METRICS_OUTDIR}"
+
+python3 xp_metrics.py \
+  --dataset "${DATASET}" \
+  --full-autoencoder "${DATASET_OUTDIR}/${DATASET}s_ae.txt" \
+  --full-dmkcn "${DATASET_OUTDIR}/${DATASET}s_dmkcn.txt" \
+  --ablation "${OUTFILE}" \
+  --full-alpha "${FULL_ALPHA}" \
+  --full-beta "${FULL_BETA}" \
+  --include-all-alpha-beta \
+  --outdir "${METRICS_ALL_ALPHA_BETA_OUTDIR}"
+
 echo "=== Generate executive summary ==="
 
-python3 summarize_xp.py \
+python3 xp_statistics.py \
   --dataset "${DATASET}" \
   --full-autoencoder "${DATASET_OUTDIR}/${DATASET}s_ae.txt" \
   --full-dmkcn "${DATASET_OUTDIR}/${DATASET}s_dmkcn.txt" \

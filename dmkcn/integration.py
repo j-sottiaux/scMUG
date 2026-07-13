@@ -1,9 +1,9 @@
 """Integration adapter: use scDMKC as scMUG's per-GFM representation generator.
 
 Drop-in replacement for scMUG's ZINB-autoencoder block B. For one gene functional
-module (GFM), it trains scDMKC on that module's genes, takes the consistent kernel
-representation K, and returns a spectral embedding of K that scMUG's block C
-consumes exactly like the original 32-D autoencoder latent.
+module (GFM), it trains scDMKC on that module's genes, takes the normalized
+cell-cell representation K, and returns a spectral embedding of K that scMUG's
+block C consumes exactly like the original 32-D autoencoder latent.
 
 Usage in scMUG.py -- the ~8 block-B lines become:
 
@@ -22,11 +22,10 @@ Two things to keep in mind
    structure lives in K. We turn K into a low-dim embedding that carries that
    structure, so block C works unchanged.
 
-2. ZINB target confound: scMUG's original block B feeds the *scaled* adata.X as the
-   ZINB target; this adapter feeds the true integer counts (adata.raw.X) as scDMKC
-   intends. If the integration improves results, part of the gain may come from
-   this corrected target rather than the kernels alone. Set zinb_on_counts=False to
-   mirror scMUG's original (scaled-target) behaviour for a cleaner ablation.
+2. ZINB target confound: this adapter feeds integer counts (adata.raw.X) as scDMKC
+   intends. Feeding scaled/z-scored values to a ZINB likelihood is invalid when
+   they are negative, so zinb_on_counts=False is guarded and should be reserved for
+   explicit non-negative target ablations.
 """
 
 from __future__ import annotations
@@ -51,6 +50,14 @@ def affinity_from_K(K: np.ndarray, nonneg: str = "clip") -> np.ndarray:
                      what you want, kept for comparison).
           'shift' -> S - min(S): preserves ordering, makes everything positive.
     """
+    K = np.asarray(K)
+    if K.ndim != 2 or K.shape[0] != K.shape[1]:
+        raise ValueError(f"K must be a square 2D matrix, got shape {K.shape}.")
+    if K.shape[0] < 2:
+        raise ValueError("K must contain at least two cells.")
+    if not np.isfinite(K).all():
+        raise ValueError("K contains NaN or infinite values.")
+
     S = (K + K.T) / 2.0
     if nonneg == "clip":
         A = np.clip(S, 0.0, None)
@@ -60,32 +67,22 @@ def affinity_from_K(K: np.ndarray, nonneg: str = "clip") -> np.ndarray:
         A = S - S.min()
     else:
         raise ValueError(f"unknown nonneg='{nonneg}'")
+    if not np.isfinite(A).all():
+        raise ValueError("Affinity derived from K contains NaN or infinite values.")
+    if not np.any(A > 0):
+        raise ValueError(
+            "Affinity derived from K is all zero; spectral embedding is undefined."
+        )
     return A.astype(np.float64)
 
 
 def spectral_embedding_from_K(
     K: np.ndarray, d: int = 32, seed: int = 0, nonneg: str = "clip"
 ) -> np.ndarray:
-    """Return a (n_cells, d) spectral embedding of the kernel representation K.
-
-    Fails fast on malformed input rather than letting a corrupt embedding
-    silently pollute scMUG's block C.
-    """
-    # (1) input validation
-    if K.ndim != 2 or K.shape[0] != K.shape[1]:
-        raise ValueError(f"K must be square, got shape {K.shape}")
-    if K.shape[0] <= 2:
-        raise ValueError("Need at least 3 cells for spectral embedding.")
-
+    """Return a (n_cells, d) spectral embedding of the kernel representation K."""
+    if d <= 0:
+        raise ValueError(f"d must be strictly positive, got {d}.")
     A = affinity_from_K(K, nonneg=nonneg)
-
-    # (2) a diverged dmkcn run can leave NaN/Inf in K -> catch it loudly here
-    if not np.isfinite(A).all():
-        raise ValueError("Affinity matrix contains NaN or Inf.")
-    # (3) degenerate all-zero affinity (e.g. nonneg='clip' with K <= 0 everywhere)
-    if np.all(A == 0):
-        raise ValueError("Affinity matrix is all zeros after transformation.")
-
     d_eff = int(min(d, A.shape[0] - 1))
     emb = SpectralEmbedding(
         n_components=d_eff,
@@ -105,9 +102,9 @@ def dmkcn_block_b(
     seed: int = 0,
     full_training: bool = True,
     pretrain_epochs: int = 300,
-    n_iter: int = 300,
+    n_iter: int = 200,
     lambda1: float = 0.1,  # kernel loss weight   (frozen tuned config)
-    lambda2: float = 0.0,  # clustering loss weight
+    lambda2: float = 1.0,  # clustering loss weight
     lambda3: float = 0.05,  # ZINB loss weight
     zinb_on_counts: bool = True,
     nonneg: str = "clip",
@@ -115,13 +112,19 @@ def dmkcn_block_b(
 ) -> np.ndarray:
     """scDMKC block-B replacement for one GFM. Returns a (n_cells, d) embedding.
 
-    full_training=True runs the complete scDMKC (pretrain + joint self-supervision),
-    faithful to the paper. full_training=False runs pretraining only (faster; the
+    full_training=True runs the complete scDMKC-style training (pretrain + joint
+    self-supervision). full_training=False runs pretraining only (faster; the
     joint phase can be toggled back on later). fit() is called WITHOUT labels, so
     no ground truth ever enters training.
     """
     data = from_scmug_anndata(adata, gene_subset=gene_list)
     X_zinb = data.X_raw if zinb_on_counts else data.X_input
+    if not zinb_on_counts and np.any(X_zinb < 0):
+        raise ValueError(
+            "zinb_on_counts=False would feed negative scaled values to the ZINB "
+            "likelihood. Use raw counts for ZINB or disable the ZINB branch in a "
+            "dedicated ablation."
+        )
 
     trainer = ScDMKCTrainer(
         n_clusters=n_clusters,

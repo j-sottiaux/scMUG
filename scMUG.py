@@ -282,7 +282,11 @@ def run():
             mat1 = get_mat1(
                 pred, n_sample, kmeans_times, n_gfm, cluster_number, score, thread_num
             )
-            mat1 = mat1 / np.mean(mat1)
+            mean_mat1 = np.mean(mat1)
+            if mean_mat1 > 1e-12:
+                mat1 = mat1 / mean_mat1
+            else:
+                print("[WARNING] mat1 mean is zero; skipping mat1 normalization")
 
             for alpha, beta in [
                 (0, 1),

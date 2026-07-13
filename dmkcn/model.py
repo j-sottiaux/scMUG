@@ -1,6 +1,6 @@
-"""scDMKC model.
+"""scDMKC-like model.
 
-Faithful reproduction of the network described in Yao & Ren (2025),
+Stabilized implementation of the network described in Yao & Ren (2025),
 "Deep multi-kernel cell clustering for single-cell RNA sequencing data".
 
 The model has four parts (Section 3.1):
@@ -9,11 +9,12 @@ The model has four parts (Section 3.1):
   3. ZINB-based multi-kernel representation decoder (eqs. 5-10)
   4. cell clustering module (Student-t soft assignment, eq. 14)
 
-IMPORTANT (full-batch design): the consistent kernel representation K is an
+IMPORTANT (full-batch design): the learned cell-cell representation K is an
 (N, N) matrix, where N is the number of cells. The ZINB decoder takes K as its
 input (D^(0) = K, see eq. 5), so the decoder's input dimension equals N and the
-model is trained full-batch, exactly as in the paper. ``n_cells`` must therefore
-be known at construction time.
+model is trained full-batch. ``n_cells`` must therefore be known at construction
+time. Numerical row normalisation means K is not guaranteed to be a symmetric PSD
+Gram matrix.
 """
 
 from __future__ import annotations

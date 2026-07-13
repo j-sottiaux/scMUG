@@ -110,6 +110,14 @@ def read_ablation_tsv(path):
                     "no_C": "without_C",
                     "no_D": "without_D",
                     "no_CD_direct_spectral": "without_CD_direct_spectral",
+                    "C_full_D_spectral": "full_recomputed_from_latents",
+                    "C_global_only_D_spectral": "without_C_local",
+                    "C_local_only_D_spectral": "without_C_global",
+                    "no_C_D_spectral_direct_knn": "without_C",
+                    "no_C_D_spectral_C_input_knn": "without_C",
+                    "C_full_no_D_kmeans_rows": "without_D",
+                    "no_C_no_D_kmeans_concat": "without_CD",
+                    "no_C_no_D_kmeans_C_input": "without_CD",
                 }
             ),
             "seed": df["seed"].astype(int),
@@ -150,9 +158,13 @@ def summarize(df):
 
     order_condition = {
         "full": 0,
-        "without_C": 1,
-        "without_D": 2,
-        "without_CD_direct_spectral": 3,
+        "full_recomputed_from_latents": 1,
+        "without_C_global": 2,
+        "without_C_local": 3,
+        "without_C": 4,
+        "without_D": 5,
+        "without_CD": 6,
+        "without_CD_direct_spectral": 7,
     }
 
     summary["_model_order"] = summary["model"].map(order_model)
@@ -236,8 +248,11 @@ def build_significance_table(all_rows):
     dataset = sm["dataset"].iloc[0]
 
     ablated_conditions = [
+        "without_C_global",
+        "without_C_local",
         "without_C",
         "without_D",
+        "without_CD",
         "without_CD_direct_spectral",
     ]
 
@@ -249,7 +264,9 @@ def build_significance_table(all_rows):
     records = []
 
     for model in models:
-        full = get(model, "full")
+        full = get(model, "full_recomputed_from_latents")
+        if full.empty:
+            full = get(model, "full")
 
         for condition in ablated_conditions:
             ablated = get(model, condition)
@@ -258,13 +275,13 @@ def build_significance_table(all_rows):
                 paired_wilcoxon(
                     full,
                     ablated,
-                    label_a=f"{model}:full",
+                    label_a=f"{model}:full_recomputed_from_latents",
                     label_b=f"{model}:{condition}",
                     family="ablation_impact",
                 )
             )
 
-    for condition in ["full"] + ablated_conditions:
+    for condition in ["full", "full_recomputed_from_latents"] + ablated_conditions:
         scmug = get("scMUG", condition)
         dmkcn = get("scMUG-DMKCN", condition)
 
@@ -288,9 +305,9 @@ def build_significance_table(all_rows):
     # FDR-correct within each hypothesis family separately: mixing "does the
     # ablation hurt" tests with "which model wins" tests in one pool would let
     # one family's signal dilute or inflate the other's corrected p-values.
-    significance["p_value_fdr_bh"] = significance.groupby("family")["p_value"].transform(
-        lambda p: fdr_bh(p.to_numpy())
-    )
+    significance["p_value_fdr_bh"] = significance.groupby("family")[
+        "p_value"
+    ].transform(lambda p: fdr_bh(p.to_numpy()))
 
     return significance
 
