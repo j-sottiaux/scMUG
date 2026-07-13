@@ -183,6 +183,7 @@ pyrightconfig.json
 outputs/
 datasets/
 logs/
+publication/
 
 # macOS
 .DS_Store
