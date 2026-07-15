@@ -185,7 +185,7 @@ datasets/
 logs/
 publication/
 docs/
-tests/
+tests/*
 
 # macOS
 .DS_Store
@@ -197,4 +197,3 @@ tests/
 # gcorr build artifacts (recompiled by run_experiment.slurm)
 gcorr/gcorr
 gcorr/libgcorr.so
-

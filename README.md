@@ -121,6 +121,28 @@ python3 scMUG.py --dataset muraro --cluster_number 7 --n_gfm 5 --cutoffs 0.14,0.
 
 The results are saved in the "./outputs/" folder, including the latent value, the predicted labels, and the benchmark results measured by ACC, ARI and NMI.
 
+## Post-hoc C/D factorial test
+
+The saved 32-dimensional AE and DMKCN latents can be reused to cross several
+block-C `(alpha, beta)` pairs with spectral clustering and k-means on affinity
+rows. This test does not retrain either block-B model.
+
+```bash
+python3 ablation_block_c_d.py \
+  --dataset li \
+  --cluster_number 9 \
+  --seeds 1111,2222,3333 \
+  --repeat 1 \
+  --latents-autoencoder outputs_adapter_pilot/li/latents_ae.joblib \
+  --latents-dmkcn outputs_adapter_pilot/li/latents_dmkcn__spectral_dense_d32.joblib \
+  --outfile outputs_adapter_pilot/li/cd_grid_alpha_d.tsv \
+  --alpha-beta-grid 0.01:1,0.1:1,1:1
+```
+
+The detailed and aggregated outputs are written to `cd_grid_alpha_d.tsv` and
+`cd_grid_alpha_d_summary.tsv`. Use `run_cd_grid.slurm` to run Darmanis and Li as
+a CPU-only SLURM array from their existing pilot outputs.
+
 # Citation
 
 [De-Min Liang, Pu-Feng Du, scMUG: deep clustering analysis of single-cell RNA-seq data on multiple gene functional modules, Briefings in Bioinformatics, Volume 26, Issue 2, March 2025, bbaf138, https://doi.org/10.1093/bib/bbaf138](https://academic.oup.com/bib/article/26/2/bbaf138/8106809)

@@ -24,6 +24,7 @@ recomputed full arm here is a paired sanity check using the saved latents.
 
 import argparse
 import json
+import math
 import os
 from collections import defaultdict
 
@@ -49,6 +50,73 @@ from utils import (
 
 
 DEFAULT_SEEDS = "1111,2222,3333,4444,5555,6666,7777,8888,9999,10000"
+
+
+def parse_alpha_beta_grid(value):
+    """Parse ``alpha:beta`` pairs while preserving order and removing duplicates."""
+    if value is None:
+        return None
+
+    pairs = []
+    seen = set()
+    for item in value.split(","):
+        item = item.strip()
+        if not item:
+            continue
+        fields = item.split(":")
+        if len(fields) != 2:
+            raise argparse.ArgumentTypeError(
+                "alpha/beta grid entries must use 'alpha:beta', for example "
+                "'0.01:1,0.1:1,1:1'"
+            )
+        try:
+            alpha, beta = (float(field.strip()) for field in fields)
+        except ValueError as exc:
+            raise argparse.ArgumentTypeError(
+                f"invalid alpha/beta pair '{item}': expected numeric values"
+            ) from exc
+        if not math.isfinite(alpha) or not math.isfinite(beta):
+            raise argparse.ArgumentTypeError(
+                f"invalid alpha/beta pair '{item}': values must be finite"
+            )
+        if alpha < 0 or beta < 0 or (alpha == 0 and beta == 0):
+            raise argparse.ArgumentTypeError(
+                f"invalid alpha/beta pair '{item}': weights must be non-negative "
+                "and cannot both be zero"
+            )
+        pair = (alpha, beta)
+        if pair not in seen:
+            seen.add(pair)
+            pairs.append(pair)
+
+    if not pairs:
+        raise argparse.ArgumentTypeError("alpha/beta grid must contain at least one pair")
+    return pairs
+
+
+def full_cd_grid_conditions(alpha_beta_pairs):
+    """Return the two block-D conditions evaluated for every C-weight pair."""
+    conditions = []
+    for alpha, beta in alpha_beta_pairs:
+        conditions.extend(
+            [
+                (
+                    "C_full_D_spectral",
+                    alpha,
+                    beta,
+                    "full",
+                    "spectral_precomputed",
+                ),
+                (
+                    "C_full_no_D_kmeans_rows",
+                    alpha,
+                    beta,
+                    "full",
+                    "kmeans_affinity_rows",
+                ),
+            ]
+        )
+    return conditions
 
 
 def clean_array(x):
@@ -338,6 +406,11 @@ def append_result(
 
 def evaluate_arm(arm_name, latents, seeds, y, args):
     rows = []
+    grid_conditions = (
+        full_cd_grid_conditions(args.alpha_beta_grid)
+        if args.alpha_beta_grid is not None
+        else None
+    )
 
     for seed, latent_val in zip(seeds, latents):
         if latent_val.shape[0] != len(y):
@@ -348,12 +421,13 @@ def evaluate_arm(arm_name, latents, seeds, y, args):
 
         print(f"[{arm_name}] seed={seed}: building C-local mat2")
         mat2 = build_mat2(latent_val, args.n_neighbour, args.red_local)
-        direct_features = concat_block_c_inputs(
-            latent_val,
-            args.red_global,
-            args.red_local,
-        )
-        direct_affinity = direct_knn_affinity(direct_features, args.direct_knn)
+        if grid_conditions is None:
+            direct_features = concat_block_c_inputs(
+                latent_val,
+                args.red_global,
+                args.red_local,
+            )
+            direct_affinity = direct_knn_affinity(direct_features, args.direct_knn)
 
         for repeat_idx in range(args.repeat):
             print(
@@ -371,8 +445,47 @@ def evaluate_arm(arm_name, latents, seeds, y, args):
                 seed=seed + repeat_idx,
             )
 
-            mat_full = args.full_alpha * mat1 + args.full_beta * mat2
+            if grid_conditions is not None:
+                mat_by_pair = {
+                    (alpha, beta): alpha * mat1 + beta * mat2
+                    for alpha, beta in args.alpha_beta_grid
+                }
+                for method, alpha, beta, c_mode, d_mode in grid_conditions:
+                    mat_full = mat_by_pair[(alpha, beta)]
+                    if d_mode == "spectral_precomputed":
+                        labels = spectral_precomputed(
+                            mat_full,
+                            args.cluster_number,
+                            seed + repeat_idx,
+                        )
+                    elif d_mode == "kmeans_affinity_rows":
+                        labels = kmeans_affinity_rows(
+                            mat_full,
+                            args.cluster_number,
+                            seed + repeat_idx,
+                            args.direct_kmeans_n_init,
+                        )
+                    else:  # pragma: no cover - guarded by full_cd_grid_conditions
+                        raise ValueError(f"Unknown grid D mode: {d_mode}")
 
+                    append_result(
+                        rows,
+                        arm_name,
+                        seed,
+                        repeat_idx,
+                        method,
+                        alpha,
+                        beta,
+                        c_mode,
+                        d_mode,
+                        args.red_global,
+                        args.red_local,
+                        y,
+                        labels,
+                    )
+                continue
+
+            mat_full = args.full_alpha * mat1 + args.full_beta * mat2
             protocol = [
                 (
                     "C_full_D_spectral",
@@ -639,6 +752,17 @@ def main():
     )
 
     parser.add_argument(
+        "--alpha-beta-grid",
+        type=parse_alpha_beta_grid,
+        default=None,
+        help=(
+            "Optional comma-separated alpha:beta pairs. When provided, evaluate "
+            "only full C crossed with spectral clustering and k-means on affinity "
+            "rows, without running the other C/D ablations."
+        ),
+    )
+
+    parser.add_argument(
         "--direct-knn",
         "--knn",
         dest="direct_knn",
@@ -675,13 +799,21 @@ def main():
         f"Dataset: {args.dataset}; n_cells={len(y)}; n_clusters={args.cluster_number}"
     )
 
-    print(
-        "Ablations: C_full_D_spectral, C_global_only_D_spectral, "
-        "C_local_only_D_spectral, no_C_D_spectral_C_input_knn, "
-        "C_full_no_D_kmeans_rows, no_C_no_D_kmeans_C_input; "
-        f"full_alpha={args.full_alpha}; full_beta={args.full_beta}; "
-        f"red_global={args.red_global}; red_local={args.red_local}"
-    )
+    if args.alpha_beta_grid is not None:
+        print(
+            "C/D factorial grid: C_full_D_spectral x "
+            "C_full_no_D_kmeans_rows; "
+            f"alpha_beta_grid={args.alpha_beta_grid}; "
+            f"red_global={args.red_global}; red_local={args.red_local}"
+        )
+    else:
+        print(
+            "Ablations: C_full_D_spectral, C_global_only_D_spectral, "
+            "C_local_only_D_spectral, no_C_D_spectral_C_input_knn, "
+            "C_full_no_D_kmeans_rows, no_C_no_D_kmeans_C_input; "
+            f"full_alpha={args.full_alpha}; full_beta={args.full_beta}; "
+            f"red_global={args.red_global}; red_local={args.red_local}"
+        )
 
     latents_auto = load_latent_list(args.latents_autoencoder, seeds)
     rows = []
