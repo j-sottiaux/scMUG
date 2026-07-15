@@ -11,7 +11,7 @@
 #SBATCH --partition=gpuai
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=julien.sottiaux@univ-lille.fr
-#SBATCH --array=1-5%5
+#SBATCH --array=2,4%2
 
 set -euo pipefail
 
@@ -48,14 +48,36 @@ echo "Full beta: ${FULL_BETA}"
 echo "N_NEIGHBOUR: ${N_NEIGHBOUR}"
 echo "RED_GLOBAL: ${RED_GLOBAL}"
 echo "RED_LOCAL: ${RED_LOCAL}"
+echo "DMKCN_ALLOW_PSEUDO_COUNTS: ${DMKCN_ALLOW_PSEUDO_COUNTS}"
 
-SEEDS="1111,2222,3333,4444,5555,6666,7777,8888,9999,10000"
-REPEAT=3
-KMEANS_TIMES=20
-EPOCH=50
+DMKCN_ADAPTER_PILOT="${DMKCN_ADAPTER_PILOT:-false}"
+SEEDS="${SEEDS:-1111,2222,3333,4444,5555,6666,7777,8888,9999,10000}"
+REPEAT="${REPEAT:-3}"
+KMEANS_TIMES="${KMEANS_TIMES:-20}"
+EPOCH="${EPOCH:-50}"
+DMKCN_PROJECTIONS="${DMKCN_PROJECTIONS:-spectral_dense}"
+DMKCN_EMBEDDING_DIMS="${DMKCN_EMBEDDING_DIMS:-32}"
+DMKCN_PRIMARY_PROJECTION="${DMKCN_PRIMARY_PROJECTION:-spectral_dense}"
+DMKCN_PRIMARY_D="${DMKCN_PRIMARY_D:-32}"
+DMKCN_GRAPH_NEIGHBORS="${DMKCN_GRAPH_NEIGHBORS:-30}"
+DMKCN_EVALUATE_EXITS="${DMKCN_EVALUATE_EXITS:-false}"
+DMKCN_EVALUATE_VARIANTS="${DMKCN_EVALUATE_VARIANTS:-false}"
+OUTPUT_ROOT="${OUTPUT_ROOT:-./outputs}"
+
+if [ "${DMKCN_ADAPTER_PILOT}" = "true" ]; then
+    SEEDS="1111,2222,3333"
+    REPEAT=1
+    DMKCN_PROJECTIONS="spectral_dense,spectral_knn,svd_raw,svd_l2,svd_zscore"
+    DMKCN_EMBEDDING_DIMS="9,16,18,32"
+    DMKCN_EVALUATE_EXITS=true
+    DMKCN_EVALUATE_VARIANTS=true
+    OUTPUT_ROOT="./outputs_adapter_pilot"
+fi
 echo "EPOCH: ${EPOCH}"
+echo "DMKCN_PROJECTIONS: ${DMKCN_PROJECTIONS}"
+echo "DMKCN_EMBEDDING_DIMS: ${DMKCN_EMBEDDING_DIMS}"
 
-DATASET_OUTDIR="./outputs/${DATASET}"
+DATASET_OUTDIR="${OUTPUT_ROOT}/${DATASET}"
 RUN_ID="$(date +%Y%m%d_%H%M%S)_job${SLURM_JOB_ID:-local}_task${SLURM_ARRAY_TASK_ID:-0}"
 RUN_LOG_DIR="${DATASET_OUTDIR}/run_logs/${RUN_ID}"
 mkdir -p "${DATASET_OUTDIR}" "${RUN_LOG_DIR}"
@@ -73,10 +95,15 @@ SUMMARY_OUTFILE="${DATASET_OUTDIR}/comparison_summary.csv"
 SIGNIFICANCE_OUTFILE="${DATASET_OUTDIR}/significance.csv"
 METRICS_OUTDIR="${DATASET_OUTDIR}/metrics"
 METRICS_ALL_ALPHA_BETA_OUTDIR="${DATASET_OUTDIR}/metrics_all_alpha_beta"
+VARIANT_OUTFILE="${DATASET_OUTDIR}/ablation_projection_variants.tsv"
 
 export DATASET_OUTDIR LATENTS_AE LATENTS_DMKCN OUTFILE SUMMARY_OUTFILE
 export SIGNIFICANCE_OUTFILE METRICS_OUTDIR METRICS_ALL_ALPHA_BETA_OUTDIR
+export VARIANT_OUTFILE OUTPUT_ROOT
 export SEEDS REPEAT KMEANS_TIMES EPOCH
+export DMKCN_PROJECTIONS DMKCN_EMBEDDING_DIMS DMKCN_PRIMARY_PROJECTION
+export DMKCN_PRIMARY_D DMKCN_GRAPH_NEIGHBORS DMKCN_EVALUATE_EXITS
+export DMKCN_EVALUATE_VARIANTS DMKCN_ALLOW_PSEUDO_COUNTS DMKCN_ADAPTER_PILOT
 
 python3 - <<'PY'
 import json
@@ -133,6 +160,15 @@ payload = {
         "repeat": os.environ.get("REPEAT"),
         "kmeans_times": os.environ.get("KMEANS_TIMES"),
         "epoch": os.environ.get("EPOCH"),
+        "dmkcn_projections": os.environ.get("DMKCN_PROJECTIONS"),
+        "dmkcn_embedding_dims": os.environ.get("DMKCN_EMBEDDING_DIMS"),
+        "dmkcn_primary_projection": os.environ.get("DMKCN_PRIMARY_PROJECTION"),
+        "dmkcn_primary_d": os.environ.get("DMKCN_PRIMARY_D"),
+        "dmkcn_graph_neighbors": os.environ.get("DMKCN_GRAPH_NEIGHBORS"),
+        "dmkcn_evaluate_exits": os.environ.get("DMKCN_EVALUATE_EXITS"),
+        "dmkcn_evaluate_variants": os.environ.get("DMKCN_EVALUATE_VARIANTS"),
+        "dmkcn_adapter_pilot": os.environ.get("DMKCN_ADAPTER_PILOT"),
+        "dmkcn_allow_pseudo_counts": os.environ.get("DMKCN_ALLOW_PSEUDO_COUNTS"),
     },
     "paths": {
         "dataset_outdir": os.environ.get("DATASET_OUTDIR"),
@@ -144,6 +180,7 @@ payload = {
         "metrics_all_alpha_beta": os.environ.get("METRICS_ALL_ALPHA_BETA_OUTDIR"),
         "summary": os.environ.get("SUMMARY_OUTFILE"),
         "significance": os.environ.get("SIGNIFICANCE_OUTFILE"),
+        "variant_ablation": os.environ.get("VARIANT_OUTFILE"),
     },
 }
 
@@ -302,6 +339,14 @@ python3 scMUG.py \
 
 echo "=== Run Plugged scMUG (block B = DMKCN) ==="
 
+DMKCN_OPTIONAL_ARGS=()
+if [ "${DMKCN_ALLOW_PSEUDO_COUNTS}" = "true" ]; then
+    DMKCN_OPTIONAL_ARGS+=(--dmkcn-allow-pseudo-counts)
+fi
+if [ "${DMKCN_EVALUATE_EXITS}" = "true" ]; then
+    DMKCN_OPTIONAL_ARGS+=(--dmkcn-evaluate-exits)
+fi
+
 python3 scMUG.py \
     --dataset "${DATASET}" \
     --cluster_number "${CLUSTER_NUMBER}" \
@@ -318,6 +363,12 @@ python3 scMUG.py \
     --block-b dmkcn \
     --output-tag dmkcn \
     --dmkcn-zinb-on-counts \
+    --dmkcn-projections "${DMKCN_PROJECTIONS}" \
+    --dmkcn-embedding-dims "${DMKCN_EMBEDDING_DIMS}" \
+    --dmkcn-primary-projection "${DMKCN_PRIMARY_PROJECTION}" \
+    --dmkcn-primary-d "${DMKCN_PRIMARY_D}" \
+    --dmkcn-graph-neighbors "${DMKCN_GRAPH_NEIGHBORS}" \
+    "${DMKCN_OPTIONAL_ARGS[@]}" \
     --output-dir "${DATASET_OUTDIR}"
 
 echo "=== Run ablation tests from saved latents ==="
@@ -337,6 +388,25 @@ python3 ablation_block_c_d.py \
     --full-beta "${FULL_BETA}" \
     --red_global "${RED_GLOBAL}" \
     --red_local "${RED_LOCAL}"
+
+if [ "${DMKCN_EVALUATE_VARIANTS}" = "true" ]; then
+    echo "=== Evaluate every saved DMKCN K projection through common C/D ==="
+    python3 ablation_block_c_d.py \
+        --dataset "${DATASET}" \
+        --cluster_number "${CLUSTER_NUMBER}" \
+        --seeds "${SEEDS}" \
+        --repeat "${REPEAT}" \
+        --kmeans_times "${KMEANS_TIMES}" \
+        --n_neighbour "${N_NEIGHBOUR}" \
+        --latents-autoencoder "${LATENTS_AE}" \
+        --dmkcn-manifest "${DATASET_OUTDIR}/latents_dmkcn_manifest.json" \
+        --outfile "${VARIANT_OUTFILE}" \
+        --thread-num "${SLURM_CPUS_PER_TASK}" \
+        --full-alpha "${FULL_ALPHA}" \
+        --full-beta "${FULL_BETA}" \
+        --red_global "${RED_GLOBAL}" \
+        --red_local "${RED_LOCAL}"
+fi
 
 
 echo "=== Generate scMUG-style metric summaries ==="

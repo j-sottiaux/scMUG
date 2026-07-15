@@ -21,6 +21,7 @@ alongside the scaled input.
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 
 import numpy as np
@@ -139,7 +140,11 @@ def preprocess(
     )
 
 
-def from_scmug_anndata(adata, gene_subset=None) -> PreprocessedData:
+def from_scmug_anndata(
+    adata,
+    gene_subset=None,
+    allow_pseudo_counts: bool = False,
+) -> PreprocessedData:
     """Build PreprocessedData from a scMUG / scDeepCluster-style AnnData.
 
     Expects:
@@ -148,8 +153,17 @@ def from_scmug_anndata(adata, gene_subset=None) -> PreprocessedData:
 
     If adata.raw is present, raw counts are aligned by gene names.
     """
+    if adata.n_obs < 2 or adata.n_vars < 1:
+        raise ValueError(f"adata must contain cells and genes, got shape {adata.shape}.")
+    if adata.obs_names.has_duplicates:
+        raise ValueError("adata contains duplicated cell identifiers.")
+    if adata.var_names.has_duplicates:
+        raise ValueError("adata contains duplicated gene identifiers.")
+
     X = adata.X
     X = X.toarray() if hasattr(X, "toarray") else np.asarray(X)
+    if not np.isfinite(X).all():
+        raise ValueError("adata.X contains NaN or infinite values.")
 
     var_names = np.asarray(adata.var_names, dtype=object)
 
@@ -197,12 +211,41 @@ def from_scmug_anndata(adata, gene_subset=None) -> PreprocessedData:
     else:
         raise ValueError("No raw counts found in adata.raw or adata.layers['counts'].")
 
+    raw_all_array = np.asarray(raw_full_for_sf, dtype=np.float32)
+    if raw_all_array.shape[0] != adata.n_obs:
+        raise ValueError(
+            "Raw counts and adata.X have different cell counts: "
+            f"{raw_all_array.shape[0]} and {adata.n_obs}."
+        )
+    if not np.isfinite(raw_all_array).all():
+        raise ValueError("Raw counts contain NaN or infinite values.")
+    if np.any(raw_all_array < 0):
+        raise ValueError("Raw counts must be non-negative for the ZINB likelihood.")
+
+    counts_are_integer = bool(
+        np.allclose(raw_all_array, np.rint(raw_all_array), atol=1e-3)
+    )
+    if not counts_are_integer and not allow_pseudo_counts:
+        raise ValueError(
+            "Raw values are not integer counts. ZINB requires count-like data. "
+            "Provide raw counts or explicitly set allow_pseudo_counts=True for a "
+            "documented approximation."
+        )
+    if not counts_are_integer:
+        warnings.warn(
+            "Rounding non-integer raw values for the ZINB target because "
+            "allow_pseudo_counts=True. This is an approximation, not a count-data "
+            "likelihood fit.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+
     # size factors from full raw library when possible ----------------------
     if "size_factors" in getattr(adata, "obs", {}):
         sf = np.asarray(adata.obs["size_factors"], dtype=np.float32).reshape(-1, 1)
     else:
         _, sf, _ = _compute_size_factors_from_full_counts(
-            np.asarray(raw_full_for_sf, dtype=np.float32)
+            raw_all_array
         )
 
     # optional gene subsetting ----------------------------------------------
@@ -220,6 +263,17 @@ def from_scmug_anndata(adata, gene_subset=None) -> PreprocessedData:
         var_names = var_names[idx]
     else:
         idx = np.arange(len(var_names), dtype=int)
+
+    raw = np.asarray(raw, dtype=np.float32)
+    if not counts_are_integer:
+        raw = np.rint(raw)
+
+    if X.shape != raw.shape:
+        raise ValueError(
+            f"Encoder input and ZINB counts are misaligned: {X.shape} vs {raw.shape}."
+        )
+    if len(np.unique(var_names.astype(str))) != len(var_names):
+        raise ValueError("Selected DMKCN genes contain duplicated identifiers.")
 
     return PreprocessedData(
         X_input=np.ascontiguousarray(X, dtype=np.float32),

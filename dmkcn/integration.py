@@ -31,10 +31,28 @@ Two things to keep in mind
 from __future__ import annotations
 
 import numpy as np
+from scipy import sparse
+from scipy.sparse.csgraph import connected_components
+from sklearn.decomposition import TruncatedSVD
 from sklearn.manifold import SpectralEmbedding
+from sklearn.preprocessing import normalize
 
 from .preprocessing import from_scmug_anndata
 from .trainer import ScDMKCTrainer
+
+
+SUPPORTED_PROJECTIONS = (
+    "spectral_dense",
+    "spectral_knn",
+    "svd_raw",
+    "svd_l2",
+    "svd_zscore",
+)
+
+
+def embedding_key(projection: str, d: int) -> str:
+    """Stable key used in joblib filenames and diagnostics."""
+    return f"{projection}_d{int(d)}"
 
 
 def affinity_from_K(K: np.ndarray, nonneg: str = "clip") -> np.ndarray:
@@ -73,16 +91,100 @@ def affinity_from_K(K: np.ndarray, nonneg: str = "clip") -> np.ndarray:
         raise ValueError(
             "Affinity derived from K is all zero; spectral embedding is undefined."
         )
-    return A.astype(np.float64)
+    return A.astype(np.float32, copy=False)
+
+
+def kernel_diagnostics(K: np.ndarray) -> dict[str, float]:
+    """Compact diagnostics for the learned cell-cell representation."""
+    K = np.asarray(K, dtype=np.float32)
+    row_l1 = np.abs(K).sum(axis=1)
+    return {
+        "min": float(K.min()),
+        "max": float(K.max()),
+        "mean": float(K.mean()),
+        "std": float(K.std()),
+        "positive_fraction": float(np.mean(K > 0)),
+        "negative_fraction": float(np.mean(K < 0)),
+        "asymmetry_max": float(np.max(np.abs(K - K.T))),
+        "row_l1_min": float(row_l1.min()),
+        "row_l1_median": float(np.median(row_l1)),
+        "row_l1_max": float(row_l1.max()),
+    }
+
+
+def knn_affinity_from_K(
+    K: np.ndarray,
+    n_neighbors: int,
+    nonneg: str = "clip",
+    row_chunk_size: int = 256,
+) -> tuple[sparse.csr_matrix, dict[str, float | int]]:
+    """Build a weighted symmetric kNN graph from the affinity induced by K."""
+    A = affinity_from_K(K, nonneg=nonneg)
+    n_cells = A.shape[0]
+    if not 1 <= n_neighbors < n_cells:
+        raise ValueError(
+            f"n_neighbors must be in [1, {n_cells - 1}], got {n_neighbors}."
+        )
+    if row_chunk_size <= 0:
+        raise ValueError(f"row_chunk_size must be positive, got {row_chunk_size}.")
+
+    np.fill_diagonal(A, 0.0)
+    row_parts = []
+    col_parts = []
+    data_parts = []
+    kth = n_cells - n_neighbors
+    for start in range(0, n_cells, row_chunk_size):
+        stop = min(start + row_chunk_size, n_cells)
+        block = A[start:stop]
+        indices = np.argpartition(block, kth=kth, axis=1)[:, -n_neighbors:]
+        values = np.take_along_axis(block, indices, axis=1)
+        row_parts.append(np.repeat(np.arange(start, stop), n_neighbors))
+        col_parts.append(indices.reshape(-1))
+        data_parts.append(values.reshape(-1))
+
+    rows = np.concatenate(row_parts)
+    cols = np.concatenate(col_parts)
+    data = np.concatenate(data_parts)
+    keep = data > 0
+    graph = sparse.csr_matrix(
+        (data[keep], (rows[keep], cols[keep])),
+        shape=(n_cells, n_cells),
+        dtype=np.float32,
+    )
+    graph = graph.maximum(graph.T).tocsr()
+    graph.eliminate_zeros()
+    n_components, _ = connected_components(graph, directed=False)
+    degree = np.asarray((graph > 0).sum(axis=1)).ravel()
+    diagnostics = {
+        "n_neighbors_requested": int(n_neighbors),
+        "topk_row_chunk_size": int(row_chunk_size),
+        "n_edges_undirected": int(graph.nnz // 2),
+        "n_connected_components": int(n_components),
+        "degree_min": int(degree.min()),
+        "degree_median": float(np.median(degree)),
+        "degree_max": int(degree.max()),
+    }
+    return graph, diagnostics
 
 
 def spectral_embedding_from_K(
-    K: np.ndarray, d: int = 32, seed: int = 0, nonneg: str = "clip"
+    K: np.ndarray,
+    d: int = 32,
+    seed: int = 0,
+    nonneg: str = "clip",
+    graph_neighbors: int | None = None,
 ) -> np.ndarray:
     """Return a (n_cells, d) spectral embedding of the kernel representation K."""
     if d <= 0:
         raise ValueError(f"d must be strictly positive, got {d}.")
-    A = affinity_from_K(K, nonneg=nonneg)
+    if graph_neighbors is None:
+        A = affinity_from_K(K, nonneg=nonneg)
+    else:
+        A, _ = knn_affinity_from_K(
+            K,
+            n_neighbors=graph_neighbors,
+            nonneg=nonneg,
+        )
     d_eff = int(min(d, A.shape[0] - 1))
     emb = SpectralEmbedding(
         n_components=d_eff,
@@ -92,6 +194,100 @@ def spectral_embedding_from_K(
     if d_eff < d:  # pad only for tiny datasets where d >= n_cells
         emb = np.pad(emb, ((0, 0), (0, d - d_eff)))
     return emb.astype(np.float32)
+
+
+def svd_embedding_from_K(
+    K: np.ndarray,
+    d: int = 32,
+    seed: int = 0,
+    row_mode: str = "raw",
+) -> np.ndarray:
+    """Project rows of K while preserving their signed, asymmetric geometry."""
+    if d <= 0:
+        raise ValueError(f"d must be strictly positive, got {d}.")
+    rows = np.asarray(K, dtype=np.float32)
+    if row_mode == "raw":
+        transformed = rows
+    elif row_mode == "l2":
+        transformed = normalize(rows, norm="l2", copy=True)
+    elif row_mode == "zscore":
+        row_mean = rows.mean(axis=1, keepdims=True)
+        row_std = rows.std(axis=1, keepdims=True)
+        transformed = (rows - row_mean) / np.where(row_std > 0, row_std, 1.0)
+    else:
+        raise ValueError(f"Unknown SVD row_mode='{row_mode}'.")
+
+    d_eff = int(min(d, min(transformed.shape) - 1))
+    embedding = TruncatedSVD(
+        n_components=d_eff,
+        algorithm="randomized",
+        n_iter=7,
+        random_state=seed,
+    ).fit_transform(transformed)
+    if d_eff < d:
+        embedding = np.pad(embedding, ((0, 0), (0, d - d_eff)))
+    return np.asarray(embedding, dtype=np.float32)
+
+
+def embeddings_from_K(
+    K: np.ndarray,
+    projections: tuple[str, ...] | list[str],
+    dimensions: tuple[int, ...] | list[int],
+    seed: int,
+    nonneg: str = "clip",
+    graph_neighbors: int = 30,
+) -> tuple[dict[str, np.ndarray], dict[str, dict]]:
+    """Create multiple block-B candidates from one trained K."""
+    projection_names = tuple(dict.fromkeys(projections))
+    dims = tuple(sorted(set(int(value) for value in dimensions)))
+    if not projection_names:
+        raise ValueError("At least one K projection must be requested.")
+    unknown = sorted(set(projection_names) - set(SUPPORTED_PROJECTIONS))
+    if unknown:
+        raise ValueError(
+            f"Unknown projections {unknown}; choose from {SUPPORTED_PROJECTIONS}."
+        )
+    if not dims or any(value <= 0 for value in dims):
+        raise ValueError(f"Embedding dimensions must be positive, got {dims}.")
+
+    max_d = max(dims)
+    embeddings: dict[str, np.ndarray] = {}
+    diagnostics: dict[str, dict] = {}
+
+    for projection in projection_names:
+        if projection == "spectral_dense":
+            full = spectral_embedding_from_K(
+                K,
+                d=max_d,
+                seed=seed,
+                nonneg=nonneg,
+            )
+            diagnostics[projection] = {"graph": "dense"}
+        elif projection == "spectral_knn":
+            graph, graph_diagnostics = knn_affinity_from_K(
+                K,
+                n_neighbors=graph_neighbors,
+                nonneg=nonneg,
+            )
+            d_eff = min(max_d, graph.shape[0] - 1)
+            full = SpectralEmbedding(
+                n_components=d_eff,
+                affinity="precomputed",
+                random_state=seed,
+            ).fit_transform(graph)
+            if d_eff < max_d:
+                full = np.pad(full, ((0, 0), (0, max_d - d_eff)))
+            full = np.asarray(full, dtype=np.float32)
+            diagnostics[projection] = graph_diagnostics
+        else:
+            row_mode = projection.removeprefix("svd_")
+            full = svd_embedding_from_K(K, d=max_d, seed=seed, row_mode=row_mode)
+            diagnostics[projection] = {"row_mode": row_mode}
+
+        for d in dims:
+            embeddings[embedding_key(projection, d)] = full[:, :d].copy()
+
+    return embeddings, diagnostics
 
 
 def dmkcn_block_b(
@@ -108,8 +304,14 @@ def dmkcn_block_b(
     lambda3: float = 0.05,  # ZINB loss weight
     zinb_on_counts: bool = True,
     nonneg: str = "clip",
+    allow_pseudo_counts: bool = False,
+    projections: tuple[str, ...] | list[str] | None = None,
+    embedding_dims: tuple[int, ...] | list[int] | None = None,
+    primary_projection: str = "spectral_dense",
+    graph_neighbors: int = 30,
+    return_artifacts: bool = False,
     verbose: bool = False,
-) -> np.ndarray:
+) -> np.ndarray | dict:
     """scDMKC block-B replacement for one GFM. Returns a (n_cells, d) embedding.
 
     full_training=True runs the complete scDMKC-style training (pretrain + joint
@@ -117,7 +319,11 @@ def dmkcn_block_b(
     joint phase can be toggled back on later). fit() is called WITHOUT labels, so
     no ground truth ever enters training.
     """
-    data = from_scmug_anndata(adata, gene_subset=gene_list)
+    data = from_scmug_anndata(
+        adata,
+        gene_subset=gene_list,
+        allow_pseudo_counts=allow_pseudo_counts,
+    )
     X_zinb = data.X_raw if zinb_on_counts else data.X_input
     if not zinb_on_counts and np.any(X_zinb < 0):
         raise ValueError(
@@ -146,4 +352,46 @@ def dmkcn_block_b(
     trainer.fit(data.X_input, X_zinb, data.size_factors)  # no y -> no label leakage
 
     K = trainer.kernel_representation_  # (n_cells, n_cells)
-    return spectral_embedding_from_K(K, d=d, seed=seed, nonneg=nonneg)
+    requested_projections = list(projections or [primary_projection])
+    if primary_projection not in requested_projections:
+        requested_projections.append(primary_projection)
+    requested_dims = list(embedding_dims or [d])
+    if d not in requested_dims:
+        requested_dims.append(d)
+
+    embeddings, projection_diagnostics = embeddings_from_K(
+        K,
+        projections=requested_projections,
+        dimensions=requested_dims,
+        seed=seed,
+        nonneg=nonneg,
+        graph_neighbors=graph_neighbors,
+    )
+    primary_key = embedding_key(primary_projection, d)
+    count_contract = dict(getattr(adata, "uns", {}).get("count_contract", {}))
+    artifacts = {
+        "embeddings": embeddings,
+        "primary_key": primary_key,
+        "labels_K_raw": trainer.labels_.copy(),
+        "diagnostics": {
+            "input": {
+                "n_cells": int(data.X_input.shape[0]),
+                "n_genes": int(data.X_input.shape[1]),
+                "zinb_on_counts": bool(zinb_on_counts),
+                "allow_pseudo_counts": bool(allow_pseudo_counts),
+                "source_counts_are_integer": count_contract.get(
+                    "counts_are_integer"
+                ),
+                "size_factor_source": count_contract.get("size_factor_source"),
+                "size_factor_min": float(data.size_factors.min()),
+                "size_factor_median": float(np.median(data.size_factors)),
+                "size_factor_max": float(data.size_factors.max()),
+            },
+            "kernel": kernel_diagnostics(K),
+            "projections": projection_diagnostics,
+            "training": trainer.fit_diagnostics_,
+        },
+    }
+    if return_artifacts:
+        return artifacts
+    return embeddings[primary_key]

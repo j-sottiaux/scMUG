@@ -290,17 +290,60 @@ def set_seed(seed=1111):
 
 
 def preprocess(expr_df, cell_type, highly_genes=8000):
+    if expr_df.index.has_duplicates:
+        raise ValueError("Expression matrix contains duplicated cell identifiers.")
+    if expr_df.columns.has_duplicates:
+        duplicated = expr_df.columns[expr_df.columns.duplicated()].tolist()
+        raise ValueError(f"Expression matrix contains duplicated genes: {duplicated[:10]}")
+    if len(expr_df) != len(cell_type):
+        raise ValueError(
+            f"Expression matrix has {len(expr_df)} cells but {len(cell_type)} labels."
+        )
+    if pd.isna(cell_type).any():
+        raise ValueError("Cell-type labels contain missing values.")
+
+    counts = expr_df.to_numpy(dtype=np.float32, copy=True)
+    if not np.isfinite(counts).all():
+        raise ValueError("Expression matrix contains NaN or infinite values.")
+    if np.any(counts < 0):
+        raise ValueError("Expression matrix must be non-negative before preprocessing.")
+
+    library_totals = counts.sum(axis=1, dtype=np.float64)
+    if np.any(library_totals <= 0):
+        bad = np.flatnonzero(library_totals <= 0)
+        raise ValueError(f"Found {len(bad)} cells with an empty expression library.")
+    median_library_total = float(np.median(library_totals))
+    size_factors = (library_totals / median_library_total).astype(np.float32)
+    counts_are_integer = bool(np.allclose(counts, np.rint(counts), atol=1e-3))
+
     adata = sc.AnnData(
-        X=expr_df.values,
+        X=counts,
         var=pd.DataFrame(index=expr_df.columns),
         obs=pd.DataFrame(
-            data={"cell_type": cell_type, "batch": [0] * len(cell_type)},
+            data={
+                "cell_type": cell_type,
+                "batch": [0] * len(cell_type),
+                "full_library_total": library_totals,
+                "size_factors": size_factors,
+                "counts_are_integer": [counts_are_integer] * len(cell_type),
+            },
             index=[f"cell_{i}" for i in range(len(cell_type))],
         ),
     )
     sc.pp.filter_genes(adata, min_counts=1)
+
+    # Preserve the complete filtered count matrix before normalisation and HVG
+    # selection. DMKCN needs its full-library size factors for the ZINB branch.
+    adata.raw = adata.copy()
+    adata.uns["count_contract"] = {
+        "source_gene_count": int(expr_df.shape[1]),
+        "filtered_gene_count": int(adata.shape[1]),
+        "counts_are_integer": counts_are_integer,
+        "size_factor_source": "full_filtered_library_before_hvg",
+    }
+
     sc.pp.normalize_total(adata, target_sum=1e5)
-    sc.pp.log1p(adata)  # why ?
+    sc.pp.log1p(adata)
     n_top_genes = (
         highly_genes
         if type(highly_genes) == int
@@ -308,14 +351,6 @@ def preprocess(expr_df, cell_type, highly_genes=8000):
     )
     sc.pp.highly_variable_genes(adata, n_top_genes=n_top_genes, subset=True)
     sc.pp.scale(adata)
-    adata.raw = sc.AnnData(
-        X=expr_df[adata.var.index].values.astype(int),
-        var=pd.DataFrame(index=adata.var.index),
-        obs=pd.DataFrame(
-            data={"cell_type": cell_type, "batch": [0] * len(cell_type)},
-            index=[f"cell_{i}" for i in range(len(cell_type))],
-        ),
-    )
     return adata
 
 

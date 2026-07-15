@@ -86,6 +86,10 @@ class ScDMKCTrainer:
         self.latent_ = None
         self.kernel_representation_ = None
         self.labels_ = None
+        self.training_history_ = []
+        self.fit_diagnostics_ = None
+        self.n_iter_run_ = 0
+        self.stopped_early_ = False
 
     # ---------------------------------------------------------------- helpers
     @staticmethod
@@ -166,6 +170,10 @@ class ScDMKCTrainer:
     def fit(self, X_input, X_raw, size_factors=None, y=None):
         torch.manual_seed(self.seed)
         np.random.seed(self.seed)
+        self.training_history_ = []
+        self.fit_diagnostics_ = None
+        self.n_iter_run_ = 0
+        self.stopped_early_ = False
 
         X_arr, Xr_arr, sf_arr = self._validate_fit_inputs(X_input, X_raw, size_factors)
         X = self._to_tensor(X_arr)  # (N, G) encoder input / recon target
@@ -200,11 +208,24 @@ class ScDMKCTrainer:
                 self.model.train()
                 opt.zero_grad()
                 out = self.model(X)
-                loss = representation_loss(X, out["x_prime"]) + self.lambda3 * zinb(
-                    Xr, out["mu"], out["theta"], out["pi"], sf
-                )
+                L_r = representation_loss(X, out["x_prime"])
+                L_z = zinb(Xr, out["mu"], out["theta"], out["pi"], sf)
+                loss = L_r + self.lambda3 * L_z
                 loss.backward()
                 opt.step()
+                if ep % 10 == 0 or ep == self.pretrain_epochs - 1:
+                    self.training_history_.append(
+                        {
+                            "phase": "pretrain",
+                            "iteration": int(ep),
+                            "total": float(loss.detach().cpu()),
+                            "representation": float(L_r.detach().cpu()),
+                            "zinb": float(L_z.detach().cpu()),
+                            "weighted_zinb": float(
+                                (self.lambda3 * L_z).detach().cpu()
+                            ),
+                        }
+                    )
                 if self.verbose and (ep % 50 == 0 or ep == self.pretrain_epochs - 1):
                     print(f"[pretrain {ep:4d}] loss={loss.item():.4f}")
 
@@ -239,6 +260,7 @@ class ScDMKCTrainer:
         opt = torch.optim.Adam(self.model.parameters(), lr=self.lr)
         p_target = None
         eval_count = 0
+        delta = float("nan")
         for it in range(self.n_iter):
             self.model.train()
 
@@ -260,6 +282,7 @@ class ScDMKCTrainer:
                     )
                 eval_count += 1
                 if it >= self.min_iter and delta < self.tol:
+                    self.stopped_early_ = True
                     if self.verbose:
                         print(f"[joint {it}] label change {delta:.4f} < tol, stop")
                     break
@@ -276,6 +299,25 @@ class ScDMKCTrainer:
             loss = L_r + self.lambda1 * L_k + self.lambda2 * L_c + self.lambda3 * L_z
             loss.backward()
             opt.step()
+            self.n_iter_run_ = it + 1
+
+            self.training_history_.append(
+                {
+                    "phase": "joint",
+                    "iteration": int(it),
+                    "total": float(loss.detach().cpu()),
+                    "representation": float(L_r.detach().cpu()),
+                    "kernel": float(L_k.detach().cpu()),
+                    "clustering": float(L_c.detach().cpu()),
+                    "zinb": float(L_z.detach().cpu()),
+                    "weighted_kernel": float((self.lambda1 * L_k).detach().cpu()),
+                    "weighted_clustering": float(
+                        (self.lambda2 * L_c).detach().cpu()
+                    ),
+                    "weighted_zinb": float((self.lambda3 * L_z).detach().cpu()),
+                    "label_delta": float(delta) if np.isfinite(delta) else None,
+                }
+            )
 
             if self.verbose and (it % 50 == 0 or it == self.n_iter - 1):
                 print(
@@ -295,8 +337,61 @@ class ScDMKCTrainer:
 
             self.q_labels_ = out["q"].argmax(1).detach().cpu().numpy()
 
+            final_target = ScDMKC.target_distribution(out["q"]).detach()
+            final_assignments = out["q"].argmax(1)
+            final_r = representation_loss(X, out["x_prime"])
+            final_k = kernel_loss(
+                out["hs"], out["K"], self.model.cluster_centers, final_assignments
+            )
+            final_c = clustering_loss(final_target, out["q"])
+            final_z = zinb(Xr, out["mu"], out["theta"], out["pi"], sf)
+            final_total = (
+                final_r
+                + self.lambda1 * final_k
+                + self.lambda2 * final_c
+                + self.lambda3 * final_z
+            )
+
+            kernel_weights = torch.softmax(
+                self.model.mk_learner.kernel_logits, dim=0
+            ).detach().cpu().numpy()
+            scale_weights = torch.softmax(
+                self.model.mk_learner.scale_logits, dim=0
+            ).detach().cpu().numpy()
+
         # paper-style final clustering: K-means on K
         self.labels_ = self._kmeans_labels(self.kernel_representation_)
+
+        self.fit_diagnostics_ = {
+            "n_cells": int(n_cells),
+            "n_genes": int(n_genes),
+            "n_clusters": int(self.n_clusters),
+            "device": str(self.device),
+            "pretrain_epochs": int(self.pretrain_epochs),
+            "joint_iterations_run": int(self.n_iter_run_),
+            "stopped_early": bool(self.stopped_early_),
+            "lambdas": {
+                "lambda1": float(self.lambda1),
+                "lambda2": float(self.lambda2),
+                "lambda3": float(self.lambda3),
+            },
+            "final_losses": {
+                "total": float(final_total.detach().cpu()),
+                "representation": float(final_r.detach().cpu()),
+                "kernel": float(final_k.detach().cpu()),
+                "clustering": float(final_c.detach().cpu()),
+                "zinb": float(final_z.detach().cpu()),
+                "weighted_kernel": float((self.lambda1 * final_k).detach().cpu()),
+                "weighted_clustering": float(
+                    (self.lambda2 * final_c).detach().cpu()
+                ),
+                "weighted_zinb": float((self.lambda3 * final_z).detach().cpu()),
+            },
+            "kernel_names": list(self.kernels),
+            "kernel_weights": kernel_weights.astype(float).tolist(),
+            "scale_weights": scale_weights.astype(float).tolist(),
+            "history": self.training_history_,
+        }
 
         return self
 

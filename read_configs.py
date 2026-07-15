@@ -100,6 +100,10 @@ def main():
     bash_export("CUTOFFS", cutoffs)
     bash_export("FULL_ALPHA", params["full_alpha"])
     bash_export("FULL_BETA", params["full_beta"])
+    bash_export(
+        "DMKCN_ALLOW_PSEUDO_COUNTS",
+        str(bool(params.get("dmkcn_allow_pseudo_counts", False))).lower(),
+    )
     bash_export("N_NEIGHBOUR", DEFAULT_N_NEIGHBOUR)
     bash_export("RED_GLOBAL", DEFAULT_RED_GLOBAL)
     bash_export("RED_LOCAL", DEFAULT_RED_LOCAL)

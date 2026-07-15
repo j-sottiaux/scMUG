@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 import numpy as np
 from model import *
@@ -30,6 +31,12 @@ def dmkcn_adapter_block_b(
     seed,
     zinb_on_counts=True,
     full_training=True,
+    allow_pseudo_counts=False,
+    projections=None,
+    embedding_dims=None,
+    primary_projection="spectral_dense",
+    primary_d=32,
+    graph_neighbors=30,
 ):
     """DMKCN replacement for scMUG block B. Imported lazily to keep AE path usable."""
     from dmkcn.integration import dmkcn_block_b
@@ -38,11 +45,30 @@ def dmkcn_adapter_block_b(
         adata,
         gene_list,
         n_clusters=cluster_number,
-        d=32,
+        d=primary_d,
         seed=seed,
         full_training=full_training,
         zinb_on_counts=zinb_on_counts,
+        allow_pseudo_counts=allow_pseudo_counts,
+        projections=projections,
+        embedding_dims=embedding_dims,
+        primary_projection=primary_projection,
+        graph_neighbors=graph_neighbors,
+        return_artifacts=True,
     )
+
+
+def clustering_metrics(y_true, labels):
+    return {
+        "nmi": float(calc_nmi(y_true, labels)),
+        "ari": float(calc_ari(y_true, labels)),
+        "acc": float(calc_acc(y_true, labels)),
+    }
+
+
+def append_jsonl(path, payload):
+    with open(path, "a", encoding="utf-8") as handle:
+        handle.write(json.dumps(payload, sort_keys=True, allow_nan=False) + "\n")
 
 
 def run():
@@ -97,6 +123,45 @@ def run():
         default=True,
         help="Only for --block-b dmkcn. Disable to run DMKCN pretraining only.",
     )
+    parser.add_argument(
+        "--dmkcn-allow-pseudo-counts",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Explicitly round non-integer raw values for the DMKCN ZINB target.",
+    )
+    parser.add_argument(
+        "--dmkcn-projections",
+        default="spectral_dense",
+        help="Comma-separated K projections to save: spectral_dense, spectral_knn, svd_raw, svd_l2, svd_zscore.",
+    )
+    parser.add_argument(
+        "--dmkcn-embedding-dims",
+        default="32",
+        help="Comma-separated embedding dimensions generated from the same trained K.",
+    )
+    parser.add_argument(
+        "--dmkcn-primary-projection",
+        default="spectral_dense",
+        help="Projection used by the full scMUG C/D pipeline in this invocation.",
+    )
+    parser.add_argument(
+        "--dmkcn-primary-d",
+        default=32,
+        type=int,
+        help="Embedding dimension used by the full scMUG C/D pipeline.",
+    )
+    parser.add_argument(
+        "--dmkcn-graph-neighbors",
+        default=30,
+        type=int,
+        help="Weighted kNN graph size for the spectral_knn projection.",
+    )
+    parser.add_argument(
+        "--dmkcn-evaluate-exits",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Evaluate K and each saved embedding against labels for diagnostics only.",
+    )
 
     args = parser.parse_args()
 
@@ -115,6 +180,16 @@ def run():
     output_tag = args.output_tag or block_b
     output_dir = args.output_dir
     thread_num = args.thread_num
+    dmkcn_projections = [
+        value.strip() for value in args.dmkcn_projections.split(",") if value.strip()
+    ]
+    dmkcn_embedding_dims = [
+        int(value) for value in args.dmkcn_embedding_dims.split(",") if value.strip()
+    ]
+    if args.dmkcn_primary_projection not in dmkcn_projections:
+        dmkcn_projections.append(args.dmkcn_primary_projection)
+    if args.dmkcn_primary_d not in dmkcn_embedding_dims:
+        dmkcn_embedding_dims.append(args.dmkcn_primary_d)
 
     os.makedirs(output_dir, exist_ok=True)
 
@@ -130,6 +205,12 @@ def run():
 
     predictions = []
     latents = []
+    latent_variants = {}
+
+    diagnostics_path = os.path.join(output_dir, f"dmkcn_diagnostics_{output_tag}.jsonl")
+    if block_b == "dmkcn":
+        with open(diagnostics_path, "w", encoding="utf-8"):
+            pass
 
     result_path = os.path.join(output_dir, f"{dbname}s_{output_tag}.txt")
     f = open(result_path, "w", encoding="utf-8")
@@ -137,6 +218,7 @@ def run():
     for seed in seeds:
         print(f"\nSeed: {seed}\n")
         latent_val = None
+        seed_variant_latents = {}
         for i, t in enumerate(cutoffs):
             print(f"GFM: {i + 1}")
             with open(f"./GFMs/{dbname}/{i + 1}.txt", "r") as fg:
@@ -160,14 +242,62 @@ def run():
                 )
             elif block_b == "dmkcn":
                 set_seed(seed)
-                latent = dmkcn_adapter_block_b(
+                artifacts = dmkcn_adapter_block_b(
                     adata=adata,
                     gene_list=gene_list,
                     cluster_number=cluster_number,
                     seed=seed,
                     zinb_on_counts=args.dmkcn_zinb_on_counts,
                     full_training=args.dmkcn_full_training,
+                    allow_pseudo_counts=args.dmkcn_allow_pseudo_counts,
+                    projections=dmkcn_projections,
+                    embedding_dims=dmkcn_embedding_dims,
+                    primary_projection=args.dmkcn_primary_projection,
+                    primary_d=args.dmkcn_primary_d,
+                    graph_neighbors=args.dmkcn_graph_neighbors,
                 )
+                diagnostic_record = {
+                    "dataset": dbname,
+                    "seed": int(seed),
+                    "gfm_index": int(i + 1),
+                    "gfm_seed_gene_count": int(len(gfm)),
+                    "gfm_extended_gene_count": int(len(gene_list)),
+                    "cluster_number": int(cluster_number),
+                    "primary_key": artifacts["primary_key"],
+                    **artifacts["diagnostics"],
+                }
+                if args.dmkcn_evaluate_exits:
+                    exit_metrics = {
+                        "K_raw": clustering_metrics(y, artifacts["labels_K_raw"])
+                    }
+                    for variant_key, variant_embedding in artifacts[
+                        "embeddings"
+                    ].items():
+                        variant_labels, _ = c_kmeans(
+                            variant_embedding,
+                            cluster_number,
+                            n_init=20,
+                            random_state=seed + i,
+                        )
+                        exit_metrics[variant_key] = clustering_metrics(
+                            y, variant_labels
+                        )
+                    diagnostic_record["exit_metrics"] = exit_metrics
+                append_jsonl(diagnostics_path, diagnostic_record)
+
+                for variant_key, variant_embedding in artifacts[
+                    "embeddings"
+                ].items():
+                    shaped = variant_embedding.reshape(
+                        (variant_embedding.shape[0], 1, -1)
+                    )
+                    if variant_key not in seed_variant_latents:
+                        seed_variant_latents[variant_key] = shaped
+                    else:
+                        seed_variant_latents[variant_key] = np.concatenate(
+                            (seed_variant_latents[variant_key], shaped), axis=1
+                        )
+                latent = artifacts["embeddings"][artifacts["primary_key"]]
             else:
                 raise ValueError(f"Unknown --block-b: {block_b}")
 
@@ -178,6 +308,9 @@ def run():
                 latent_val = np.concatenate((latent_val, latent), axis=1)
 
         latents.append(latent_val)
+        if block_b == "dmkcn":
+            for variant_key, variant_latent in seed_variant_latents.items():
+                latent_variants.setdefault(variant_key, []).append(variant_latent)
 
         # local feature
         dist = np.zeros(shape=(n_gfm, n_sample, n_sample))
@@ -248,6 +381,8 @@ def run():
 
         for r in range(repeat):
             print(f"\nRound {r}")
+            repeat_seed = seed + r
+            set_seed(repeat_seed)
             # global feature
             pred = np.zeros(shape=(kmeans_times, n_gfm, latent_val.shape[0])).astype(
                 int
@@ -266,8 +401,9 @@ def run():
                 z = reducer(red_global)(z)
 
                 for t in range(kmeans_times):
+                    kmeans_seed = repeat_seed + c * kmeans_times + t
                     pred_z, score_z = c_kmeans(
-                        z, cluster_number, n_init=10, random_state=None
+                        z, cluster_number, n_init=10, random_state=kmeans_seed
                     )
                     pred[t, c, :] = pred_z
                     score_z = np.sort(score_z, axis=1)
@@ -301,7 +437,9 @@ def run():
             ]:
                 mat = mat1 * alpha + mat2 * beta
                 Spec = SpectralClustering(
-                    n_clusters=cluster_number, random_state=None, affinity="precomputed"
+                    n_clusters=cluster_number,
+                    random_state=repeat_seed,
+                    affinity="precomputed",
                 )
                 labels = Spec.fit_predict(mat)
                 print(
@@ -326,6 +464,32 @@ def run():
         latents,
         os.path.join(output_dir, f"latents_{output_tag}.joblib"),
     )
+
+    if block_b == "dmkcn":
+        variant_paths = {}
+        for variant_key, values in sorted(latent_variants.items()):
+            variant_path = os.path.join(
+                output_dir,
+                f"latents_{output_tag}__{variant_key}.joblib",
+            )
+            joblib.dump(values, variant_path)
+            variant_paths[variant_key] = variant_path
+        manifest = {
+            "dataset": dbname,
+            "output_tag": output_tag,
+            "primary_key": f"{args.dmkcn_primary_projection}_d{args.dmkcn_primary_d}",
+            "legacy_primary_path": os.path.join(
+                output_dir, f"latents_{output_tag}.joblib"
+            ),
+            "variant_paths": variant_paths,
+            "diagnostics_path": diagnostics_path,
+        }
+        with open(
+            os.path.join(output_dir, f"latents_{output_tag}_manifest.json"),
+            "w",
+            encoding="utf-8",
+        ) as handle:
+            json.dump(manifest, handle, sort_keys=True, indent=2)
 
 
 if __name__ == "__main__":

@@ -4,6 +4,7 @@ baron:
   gfm_extension_cutoff: 0.08
   full_alpha: 0.001
   full_beta: 1
+  dmkcn_allow_pseudo_counts: false
 
 darmanis:
   cluster_number: 9
@@ -11,6 +12,7 @@ darmanis:
   gfm_extension_cutoff: 0.31
   full_alpha: 0.01
   full_beta: 1
+  dmkcn_allow_pseudo_counts: false
 
 lake:
   cluster_number: 6
@@ -18,6 +20,7 @@ lake:
   gfm_extension_cutoff: 0.12
   full_alpha: 1
   full_beta: 1
+  dmkcn_allow_pseudo_counts: true
 
 li:
   cluster_number: 9
@@ -25,6 +28,7 @@ li:
   gfm_extension_cutoff: 0.33
   full_alpha: 1
   full_beta: 1
+  dmkcn_allow_pseudo_counts: false
 
 muraro:
   cluster_number: 7
@@ -32,3 +36,4 @@ muraro:
   gfm_extension_cutoff: 0.13
   full_alpha: 0.001
   full_beta: 1
+  dmkcn_allow_pseudo_counts: true

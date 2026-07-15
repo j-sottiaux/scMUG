@@ -184,6 +184,8 @@ outputs/
 datasets/
 logs/
 publication/
+docs/
+tests/
 
 # macOS
 .DS_Store

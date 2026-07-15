@@ -23,6 +23,7 @@ recomputed full arm here is a paired sanity check using the saved latents.
 """
 
 import argparse
+import json
 import os
 from collections import defaultdict
 
@@ -169,7 +170,7 @@ def build_mat2(latent_val, n_neighbour, red_local):
     return get_mat2(n_sample, neighbour_dist, dist, neighbour_dist_score)
 
 
-def build_mat1(latent_val, n_clusters, kmeans_times, red_global, thread_num):
+def build_mat1(latent_val, n_clusters, kmeans_times, red_global, thread_num, seed):
     n_sample, n_gfm, _ = latent_val.shape
 
     pred = np.zeros((kmeans_times, n_gfm, n_sample)).astype(int)
@@ -180,11 +181,12 @@ def build_mat1(latent_val, n_clusters, kmeans_times, red_global, thread_num):
         z = reducer(red_global)(z)
 
         for t in range(kmeans_times):
+            kmeans_seed = seed + c * kmeans_times + t
             pred_z, score_z = c_kmeans(
                 z,
                 n_clusters,
                 n_init=10,
-                random_state=None,
+                random_state=kmeans_seed,
             )
 
             pred[t, c, :] = pred_z
@@ -366,6 +368,7 @@ def evaluate_arm(arm_name, latents, seeds, y, args):
                 kmeans_times=args.kmeans_times,
                 red_global=args.red_global,
                 thread_num=args.thread_num,
+                seed=seed + repeat_idx,
             )
 
             mat_full = args.full_alpha * mat1 + args.full_beta * mat2
@@ -602,6 +605,12 @@ def main():
     )
 
     parser.add_argument(
+        "--dmkcn-manifest",
+        default=None,
+        help="Optional scMUG DMKCN manifest; evaluates every saved K projection.",
+    )
+
+    parser.add_argument(
         "--outfile",
         default="./outputs/ablation_noC_noD_noCD_muraro.tsv",
     )
@@ -675,8 +684,6 @@ def main():
     )
 
     latents_auto = load_latent_list(args.latents_autoencoder, seeds)
-    latents_dmkcn = load_latent_list(args.latents_dmkcn, seeds)
-
     rows = []
 
     rows.extend(
@@ -689,15 +696,36 @@ def main():
         )
     )
 
-    rows.extend(
-        evaluate_arm(
-            "dmkcn",
-            latents_dmkcn,
-            seeds,
-            y,
-            args,
+    if args.dmkcn_manifest:
+        with open(args.dmkcn_manifest, "r", encoding="utf-8") as handle:
+            manifest = json.load(handle)
+        variant_paths = manifest.get("variant_paths", {})
+        if not variant_paths:
+            raise ValueError(
+                f"DMKCN manifest has no variant_paths: {args.dmkcn_manifest}"
+            )
+        for variant_key, variant_path in sorted(variant_paths.items()):
+            print(f"Evaluating DMKCN latent variant: {variant_key}")
+            rows.extend(
+                evaluate_arm(
+                    f"dmkcn__{variant_key}",
+                    load_latent_list(variant_path, seeds),
+                    seeds,
+                    y,
+                    args,
+                )
+            )
+    else:
+        latents_dmkcn = load_latent_list(args.latents_dmkcn, seeds)
+        rows.extend(
+            evaluate_arm(
+                "dmkcn",
+                latents_dmkcn,
+                seeds,
+                y,
+                args,
+            )
         )
-    )
 
     write_outputs(rows, args.outfile)
 
