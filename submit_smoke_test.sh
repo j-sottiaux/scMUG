@@ -11,7 +11,14 @@ mkdir -p logs
 
 submit_job() {
     local submission
-    submission="$(sbatch --parsable "$@")"
+    if ! submission="$(sbatch --parsable "$@")"; then
+        echo "SLURM submission failed: sbatch $*" >&2
+        return 1
+    fi
+    if [ -z "${submission}" ]; then
+        echo "SLURM submission returned an empty job id: sbatch $*" >&2
+        return 1
+    fi
     printf '%s' "${submission%%;*}"
 }
 

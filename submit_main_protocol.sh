@@ -10,9 +10,44 @@ mkdir -p logs
 
 submit_job() {
     local submission
-    submission="$(sbatch --parsable "$@")"
+    if ! submission="$(sbatch --parsable "$@")"; then
+        echo "SLURM submission failed: sbatch $*" >&2
+        return 1
+    fi
+    if [ -z "${submission}" ]; then
+        echo "SLURM submission returned an empty job id: sbatch $*" >&2
+        return 1
+    fi
     printf '%s' "${submission%%;*}"
 }
+
+validate_job() {
+    local description="$1"
+    shift
+    echo "Validating ${description}..."
+    if ! sbatch --test-only "$@" >/dev/null; then
+        echo "SLURM preflight failed for ${description}: sbatch $*" >&2
+        return 1
+    fi
+}
+
+# Validate every distinct resource request before creating any dependency chain.
+# This prevents a late resource error from leaving a partial protocol queued.
+validate_job "environment setup" \
+    --partition="${SCMUG_CPU_PARTITION}" prepare_python_environment.slurm
+validate_job "CPU preflight" \
+    --partition="${SCMUG_CPU_PARTITION}" validate_cpu_environment.slurm
+validate_job "k sweep" run_k_sweep.slurm
+validate_job "k selection" \
+    --partition="${SCMUG_CPU_PARTITION}" summarize_k_sweep.slurm
+validate_job "computation summary" \
+    --partition="${SCMUG_CPU_PARTITION}" summarize_computation.slurm
+validate_job "alpha/beta grid" \
+    --partition="${SCMUG_CPU_PARTITION}" run_alpha_beta_grid.slurm
+validate_job "alpha/beta summary" \
+    --partition="${SCMUG_CPU_PARTITION}" summarize_alpha_beta.slurm
+validate_job "final comparison" \
+    --partition="${SCMUG_CPU_PARTITION}" compare_final_pipelines.slurm
 
 ENVIRONMENT_SETUP_JOB_ID="$(
     submit_job --partition="${SCMUG_CPU_PARTITION}" prepare_python_environment.slurm

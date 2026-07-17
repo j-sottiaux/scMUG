@@ -6,7 +6,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=16
-#SBATCH --mem=128G
+#SBATCH --mem=64G
 #SBATCH --array=0-9%2
 #SBATCH --mail-type=END,FAIL
 #SBATCH --mail-user=julien.sottiaux@univ-lille.fr
