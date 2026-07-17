@@ -11,7 +11,7 @@
 #SBATCH --partition=gpuai
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=julien.sottiaux@univ-lille.fr
-#SBATCH --array=2,4%2
+#SBATCH --array=2,3%2
 
 set -euo pipefail
 
@@ -20,9 +20,12 @@ export MKL_NUM_THREADS=${SLURM_CPUS_PER_TASK:-16}
 export OPENBLAS_NUM_THREADS=${SLURM_CPUS_PER_TASK:-16}
 export NUMEXPR_NUM_THREADS=${SLURM_CPUS_PER_TASK:-16}
 
-PROJECT_DIR="/home/julien.sottiaux/scMUG"
-GCORR_DIR="${PROJECT_DIR}/gcorr"
-CONFIG_FILE="${PROJECT_DIR}/configs/data.yaml"
+PROJECT_DIR="${PROJECT_DIR:-/home/julien.sottiaux/scMUG}"
+GCORR_DIR="${GCORR_DIR:-${PROJECT_DIR}/gcorr}"
+CONFIG_FILE="${CONFIG_FILE:-${PROJECT_DIR}/configs/data.yaml}"
+K_SWEEP="${K_SWEEP:-false}"
+K_MIN="${K_MIN:-5}"
+K_MAX="${K_MAX:-20}"
 
 echo "=== Job started on $(hostname) at $(date) ==="
 echo "=== SLURM_ARRAY_TASK_ID=${SLURM_ARRAY_TASK_ID} ==="
@@ -31,17 +34,29 @@ module purge
 module load pytorch/2.0.1/gpu
 
 cd "${PROJECT_DIR}"
+source "${PROJECT_DIR}/slurm_helpers.sh"
 
 echo "=== Load dataset configuration ==="
-eval "$(
-python3 "${PROJECT_DIR}/read_configs.py" \
-  --config "${CONFIG_FILE}" \
-  --index "${SLURM_ARRAY_TASK_ID}"
-)"
+READ_CONFIG_ARGS=(--config "${CONFIG_FILE}")
+if [ "${K_SWEEP}" = "true" ]; then
+    READ_CONFIG_ARGS+=(
+        --sweep-task-id "${SLURM_ARRAY_TASK_ID}"
+        --k-min "${K_MIN}"
+        --k-max "${K_MAX}"
+    )
+else
+    CONFIG_INDEX="${CONFIG_INDEX:-${SLURM_ARRAY_TASK_ID}}"
+    READ_CONFIG_ARGS+=(--index "${CONFIG_INDEX}")
+fi
+load_shell_exports \
+    python3 "${PROJECT_DIR}/read_configs.py" "${READ_CONFIG_ARGS[@]}"
 
 echo "Dataset: ${DATASET}"
 echo "Cluster number: ${CLUSTER_NUMBER}"
+echo "Published best k: ${PUBLISHED_BEST_K}"
+echo "Ground-truth k: ${GROUND_TRUTH_K}"
 echo "N_GFM: ${N_GFM}"
+echo "GFM correlation rule: ${GFM_CORRELATION_RULE}"
 echo "Cutoffs: ${CUTOFFS}"
 echo "Full alpha: ${FULL_ALPHA}"
 echo "Full beta: ${FULL_BETA}"
@@ -62,7 +77,15 @@ DMKCN_PRIMARY_D="${DMKCN_PRIMARY_D:-32}"
 DMKCN_GRAPH_NEIGHBORS="${DMKCN_GRAPH_NEIGHBORS:-30}"
 DMKCN_EVALUATE_EXITS="${DMKCN_EVALUATE_EXITS:-false}"
 DMKCN_EVALUATE_VARIANTS="${DMKCN_EVALUATE_VARIANTS:-false}"
+CD_VALIDATION_ALPHA_BETA_GRID="${CD_VALIDATION_ALPHA_BETA_GRID:-}"
 OUTPUT_ROOT="${OUTPUT_ROOT:-./outputs}"
+EXPERIMENT_ID="${EXPERIMENT_ID:-}"
+EXPERIMENT_PHASE="${EXPERIMENT_PHASE:-main}"
+ALPHA_BETA_MODE="${ALPHA_BETA_MODE:-full}"
+SCMUG_ALPHA_BETA_GRID="${SCMUG_ALPHA_BETA_GRID:-}"
+RUN_ABLATIONS="${RUN_ABLATIONS:-true}"
+RUN_ALL_ALPHA_BETA_SUMMARY="${RUN_ALL_ALPHA_BETA_SUMMARY:-true}"
+RUN_STATISTICS="${RUN_STATISTICS:-true}"
 
 if [ "${DMKCN_ADAPTER_PILOT}" = "true" ]; then
     SEEDS="1111,2222,3333"
@@ -71,88 +94,145 @@ if [ "${DMKCN_ADAPTER_PILOT}" = "true" ]; then
     DMKCN_EMBEDDING_DIMS="9,16,18,32"
     DMKCN_EVALUATE_EXITS=true
     DMKCN_EVALUATE_VARIANTS=true
-    OUTPUT_ROOT="./outputs_adapter_pilot"
+    EXPERIMENT_ID="${EXPERIMENT_ID:-adapter_pilot}"
+else
+    EXPERIMENT_ID="${EXPERIMENT_ID:-main}"
+fi
+case "${ALPHA_BETA_MODE}" in
+    full)
+        SCMUG_ALPHA_BETA_GRID="0:1,0.001:1,0.01:1,0.1:1,1:1,1:0.1,1:0.01,1:0.001,1:0"
+        ;;
+    canonical)
+        SCMUG_ALPHA_BETA_GRID="${FULL_ALPHA}:${FULL_BETA}"
+        ;;
+    custom)
+        if [ -z "${SCMUG_ALPHA_BETA_GRID}" ]; then
+            echo "SCMUG_ALPHA_BETA_GRID is required when ALPHA_BETA_MODE=custom." >&2
+            exit 2
+        fi
+        ;;
+    *)
+        echo "ALPHA_BETA_MODE must be full, canonical or custom." >&2
+        exit 2
+        ;;
+esac
+for boolean_name in RUN_ABLATIONS RUN_ALL_ALPHA_BETA_SUMMARY RUN_STATISTICS; do
+    boolean_value="${!boolean_name}"
+    if [ "${boolean_value}" != "true" ] && [ "${boolean_value}" != "false" ]; then
+        echo "${boolean_name} must be true or false, got ${boolean_value}." >&2
+        exit 2
+    fi
+done
+if [ "${RUN_STATISTICS}" = "true" ] && [ "${RUN_ABLATIONS}" != "true" ]; then
+    echo "RUN_STATISTICS=true requires RUN_ABLATIONS=true." >&2
+    exit 2
+fi
+if [[ ! "${EXPERIMENT_ID}" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
+    echo "EXPERIMENT_ID must contain only letters, digits, dot, underscore or hyphen." >&2
+    exit 2
+fi
+if [[ ! "${CLUSTER_NUMBER}" =~ ^[0-9]+$ ]]; then
+    echo "CLUSTER_NUMBER must be a positive integer: ${CLUSTER_NUMBER}" >&2
+    exit 2
 fi
 echo "EPOCH: ${EPOCH}"
+echo "EXPERIMENT_ID: ${EXPERIMENT_ID}"
+echo "EXPERIMENT_PHASE: ${EXPERIMENT_PHASE}"
+echo "ALPHA_BETA_MODE: ${ALPHA_BETA_MODE}"
+echo "SCMUG_ALPHA_BETA_GRID: ${SCMUG_ALPHA_BETA_GRID}"
 echo "DMKCN_PROJECTIONS: ${DMKCN_PROJECTIONS}"
 echo "DMKCN_EMBEDDING_DIMS: ${DMKCN_EMBEDDING_DIMS}"
 
 DATASET_OUTDIR="${OUTPUT_ROOT}/${DATASET}"
 RUN_ID="$(date +%Y%m%d_%H%M%S)_job${SLURM_JOB_ID:-local}_task${SLURM_ARRAY_TASK_ID:-0}"
-RUN_LOG_DIR="${DATASET_OUTDIR}/run_logs/${RUN_ID}"
-mkdir -p "${DATASET_OUTDIR}" "${RUN_LOG_DIR}"
+K_LABEL="$(printf 'k%02d' "${CLUSTER_NUMBER}")"
+RUN_STEM="${EXPERIMENT_ID}_${K_LABEL}_${RUN_ID}"
+RESULTS_DIR="${DATASET_OUTDIR}/results"
+COMPUTATION_DIR="${DATASET_OUTDIR}/computation"
+ARTIFACTS_DIR="${DATASET_OUTDIR}/artifacts"
+RUN_LOG_DIR="${PROJECT_DIR}/logs/${DATASET}"
+mkdir -p "${RESULTS_DIR}" "${COMPUTATION_DIR}" "${ARTIFACTS_DIR}" "${RUN_LOG_DIR}"
 
-RUN_STARTED_JSON="${RUN_LOG_DIR}/run_started.json"
-RUN_EVENTS_JSONL="${RUN_LOG_DIR}/provenance.jsonl"
-export RUN_ID RUN_LOG_DIR RUN_STARTED_JSON RUN_EVENTS_JSONL
+RUN_STARTED_JSON="${ARTIFACTS_DIR}/${RUN_STEM}_manifest.json"
+RUN_EVENTS_JSONL="${COMPUTATION_DIR}/${RUN_STEM}_events.jsonl"
+COMPUTATION_OUTFILE="${COMPUTATION_DIR}/${RUN_STEM}_timings.csv"
+RUN_STDOUT="${RUN_LOG_DIR}/${RUN_STEM}.out"
+RUN_STDERR="${RUN_LOG_DIR}/${RUN_STEM}.err"
+export RUN_ID RUN_STEM RUN_LOG_DIR RUN_STARTED_JSON RUN_EVENTS_JSONL
+export COMPUTATION_OUTFILE
 
-exec > >(tee -a "${RUN_LOG_DIR}/stdout.log") 2> >(tee -a "${RUN_LOG_DIR}/stderr.log" >&2)
+exec > >(tee -a "${RUN_STDOUT}") 2> >(tee -a "${RUN_STDERR}" >&2)
 
-LATENTS_AE="${DATASET_OUTDIR}/latents_ae.joblib"
-LATENTS_DMKCN="${DATASET_OUTDIR}/latents_dmkcn.joblib"
-OUTFILE="${DATASET_OUTDIR}/ablation_tests.tsv"
-SUMMARY_OUTFILE="${DATASET_OUTDIR}/comparison_summary.csv"
-SIGNIFICANCE_OUTFILE="${DATASET_OUTDIR}/significance.csv"
-METRICS_OUTDIR="${DATASET_OUTDIR}/metrics"
-METRICS_ALL_ALPHA_BETA_OUTDIR="${DATASET_OUTDIR}/metrics_all_alpha_beta"
-VARIANT_OUTFILE="${DATASET_OUTDIR}/ablation_projection_variants.tsv"
+RAW_AE="${ARTIFACTS_DIR}/${RUN_STEM}_ae_raw.txt"
+RAW_DMKCN="${ARTIFACTS_DIR}/${RUN_STEM}_dmkcn_raw.txt"
+LATENTS_AE="${ARTIFACTS_DIR}/${RUN_STEM}_ae_latents.joblib"
+LATENTS_DMKCN="${ARTIFACTS_DIR}/${RUN_STEM}_dmkcn_latents.joblib"
+DMKCN_MANIFEST="${ARTIFACTS_DIR}/${RUN_STEM}_dmkcn_manifest.json"
+OUTFILE="${RESULTS_DIR}/${RUN_STEM}_ablation.tsv"
+SUMMARY_OUTFILE="${RESULTS_DIR}/${RUN_STEM}_comparison_summary.csv"
+SIGNIFICANCE_OUTFILE="${RESULTS_DIR}/${RUN_STEM}_significance.csv"
+VARIANT_OUTFILE="${RESULTS_DIR}/${RUN_STEM}_projection_ablation.tsv"
+CD_VALIDATION_OUTFILE="${RESULTS_DIR}/${RUN_STEM}_cd_validation.tsv"
+CANONICAL_METRICS_PREFIX="${RUN_STEM}_canonical"
+ALL_ALPHA_BETA_METRICS_PREFIX="${RUN_STEM}_all_alpha_beta"
 
-export DATASET_OUTDIR LATENTS_AE LATENTS_DMKCN OUTFILE SUMMARY_OUTFILE
-export SIGNIFICANCE_OUTFILE METRICS_OUTDIR METRICS_ALL_ALPHA_BETA_OUTDIR
-export VARIANT_OUTFILE OUTPUT_ROOT
+export DATASET_OUTDIR RESULTS_DIR COMPUTATION_DIR ARTIFACTS_DIR
+export RAW_AE RAW_DMKCN LATENTS_AE LATENTS_DMKCN DMKCN_MANIFEST
+export OUTFILE SUMMARY_OUTFILE SIGNIFICANCE_OUTFILE
+export VARIANT_OUTFILE CD_VALIDATION_OUTFILE OUTPUT_ROOT
+export CANONICAL_METRICS_PREFIX ALL_ALPHA_BETA_METRICS_PREFIX
 export SEEDS REPEAT KMEANS_TIMES EPOCH
+export EXPERIMENT_ID EXPERIMENT_PHASE CLUSTER_NUMBER PUBLISHED_BEST_K GROUND_TRUTH_K
+export CONFIG_INDEX K_SWEEP K_MIN K_MAX GFM_CORRELATION_RULE
+export ALPHA_BETA_MODE SCMUG_ALPHA_BETA_GRID
+export RUN_ABLATIONS RUN_ALL_ALPHA_BETA_SUMMARY RUN_STATISTICS
 export DMKCN_PROJECTIONS DMKCN_EMBEDDING_DIMS DMKCN_PRIMARY_PROJECTION
 export DMKCN_PRIMARY_D DMKCN_GRAPH_NEIGHBORS DMKCN_EVALUATE_EXITS
 export DMKCN_EVALUATE_VARIANTS DMKCN_ALLOW_PSEUDO_COUNTS DMKCN_ADAPTER_PILOT
+export CD_VALIDATION_ALPHA_BETA_GRID
 
 python3 - <<'PY'
 import json
 import os
 import platform
 import socket
-import subprocess
 import sys
 import time
 
 
-def git_value(args):
-    try:
-        return subprocess.check_output(
-            ["git", *args],
-            text=True,
-            stderr=subprocess.DEVNULL,
-        ).strip()
-    except Exception:
-        return None
-
-
-status = git_value(["status", "--short"])
 payload = {
     "event": "run_started",
     "created_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
-    "run_id": os.environ["RUN_ID"],
     "hostname": socket.gethostname(),
     "platform": platform.platform(),
     "python": sys.version,
     "cwd": os.getcwd(),
-    "git": {
-        "commit": git_value(["rev-parse", "HEAD"]),
-        "dirty": bool(status),
-        "status_short": status,
-    },
     "slurm": {
         "job_id": os.environ.get("SLURM_JOB_ID"),
         "array_job_id": os.environ.get("SLURM_ARRAY_JOB_ID"),
         "array_task_id": os.environ.get("SLURM_ARRAY_TASK_ID"),
         "cpus_per_task": os.environ.get("SLURM_CPUS_PER_TASK"),
     },
+    "experiment_id": os.environ.get("EXPERIMENT_ID"),
+    "run_id": os.environ.get("RUN_ID"),
     "dataset": os.environ.get("DATASET"),
+    "k": int(os.environ["CLUSTER_NUMBER"]),
+    "published_best_k": int(os.environ["PUBLISHED_BEST_K"]),
+    "ground_truth_k": int(os.environ["GROUND_TRUTH_K"]),
+    "experiment_phase": os.environ.get("EXPERIMENT_PHASE"),
+    "config_index": int(os.environ["CONFIG_INDEX"]),
+    "k_sweep": os.environ.get("K_SWEEP") == "true",
+    "k_sweep_task_id": os.environ.get("K_SWEEP_TASK_ID"),
+    "k_sweep_task_count": os.environ.get("K_SWEEP_TASK_COUNT"),
     "parameters": {
         "cluster_number": os.environ.get("CLUSTER_NUMBER"),
         "n_gfm": os.environ.get("N_GFM"),
+        "gfm_correlation_rule": os.environ.get("GFM_CORRELATION_RULE"),
         "cutoffs": os.environ.get("CUTOFFS"),
         "full_alpha": os.environ.get("FULL_ALPHA"),
         "full_beta": os.environ.get("FULL_BETA"),
+        "alpha_beta_mode": os.environ.get("ALPHA_BETA_MODE"),
+        "alpha_beta_grid": os.environ.get("SCMUG_ALPHA_BETA_GRID"),
         "n_neighbour": os.environ.get("N_NEIGHBOUR"),
         "red_global": os.environ.get("RED_GLOBAL"),
         "red_local": os.environ.get("RED_LOCAL"),
@@ -169,18 +249,36 @@ payload = {
         "dmkcn_evaluate_variants": os.environ.get("DMKCN_EVALUATE_VARIANTS"),
         "dmkcn_adapter_pilot": os.environ.get("DMKCN_ADAPTER_PILOT"),
         "dmkcn_allow_pseudo_counts": os.environ.get("DMKCN_ALLOW_PSEUDO_COUNTS"),
+        "cd_validation_alpha_beta_grid": os.environ.get(
+            "CD_VALIDATION_ALPHA_BETA_GRID"
+        ),
+        "run_ablations": os.environ.get("RUN_ABLATIONS"),
+        "run_all_alpha_beta_summary": os.environ.get(
+            "RUN_ALL_ALPHA_BETA_SUMMARY"
+        ),
+        "run_statistics": os.environ.get("RUN_STATISTICS"),
     },
     "paths": {
         "dataset_outdir": os.environ.get("DATASET_OUTDIR"),
+        "results_dir": os.environ.get("RESULTS_DIR"),
+        "computation_dir": os.environ.get("COMPUTATION_DIR"),
+        "computation_timings": os.environ.get("COMPUTATION_OUTFILE"),
+        "artifacts_dir": os.environ.get("ARTIFACTS_DIR"),
         "run_log_dir": os.environ.get("RUN_LOG_DIR"),
+        "raw_ae": os.environ.get("RAW_AE"),
+        "raw_dmkcn": os.environ.get("RAW_DMKCN"),
         "latents_ae": os.environ.get("LATENTS_AE"),
         "latents_dmkcn": os.environ.get("LATENTS_DMKCN"),
+        "dmkcn_manifest": os.environ.get("DMKCN_MANIFEST"),
         "ablation": os.environ.get("OUTFILE"),
-        "metrics": os.environ.get("METRICS_OUTDIR"),
-        "metrics_all_alpha_beta": os.environ.get("METRICS_ALL_ALPHA_BETA_OUTDIR"),
+        "canonical_metrics_prefix": os.environ.get("CANONICAL_METRICS_PREFIX"),
+        "all_alpha_beta_metrics_prefix": os.environ.get(
+            "ALL_ALPHA_BETA_METRICS_PREFIX"
+        ),
         "summary": os.environ.get("SUMMARY_OUTFILE"),
         "significance": os.environ.get("SIGNIFICANCE_OUTFILE"),
         "variant_ablation": os.environ.get("VARIANT_OUTFILE"),
+        "cd_validation": os.environ.get("CD_VALIDATION_OUTFILE"),
     },
 }
 
@@ -205,8 +303,10 @@ payload = {
     "event": sys.argv[1],
     "status": int(sys.argv[2]),
     "created_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+    "experiment_id": os.environ.get("EXPERIMENT_ID"),
     "run_id": os.environ.get("RUN_ID"),
     "dataset": os.environ.get("DATASET"),
+    "k": int(os.environ["CLUSTER_NUMBER"]),
     "slurm_job_id": os.environ.get("SLURM_JOB_ID"),
     "slurm_array_task_id": os.environ.get("SLURM_ARRAY_TASK_ID"),
 }
@@ -236,31 +336,6 @@ echo "=== CUDA check ==="
 nvidia-smi || true
 which nvcc || true
 nvcc --version || true
-
-echo "=== Install/fix Python dependencies if needed ==="
-PIP_SETUP_LOCK="${PROJECT_DIR}/.slurm_pip_setup.lock"
-PIP_SETUP_STAMP="${PROJECT_DIR}/.slurm_pip_setup.ok"
-
-(
-    flock -x 201
-
-    if [ ! -f "${PIP_SETUP_STAMP}" ] || [ "${PROJECT_DIR}/requirements.txt" -nt "${PIP_SETUP_STAMP}" ] || [ "${PROJECT_DIR}/run_xp.slurm" -nt "${PIP_SETUP_STAMP}" ]; then
-        echo "Task ${SLURM_ARRAY_TASK_ID}: installing Python dependencies"
-
-        python3 -m pip install --user --upgrade pip setuptools wheel
-
-        python3 -m pip install --user --force-reinstall \
-          "numpy==1.26.4" \
-          "scipy==1.11.4" \
-          "zarr<3"
-
-        python3 -m pip install --user -r requirements.txt
-
-        date > "${PIP_SETUP_STAMP}"
-    else
-        echo "Task ${SLURM_ARRAY_TASK_ID}: Python dependency setup already done"
-    fi
-) 201>"${PIP_SETUP_LOCK}"
 
 echo "=== Dependency check ==="
 python3 -m pip check || true
@@ -322,6 +397,7 @@ python3 scMUG.py \
     --dataset "${DATASET}" \
     --cluster_number "${CLUSTER_NUMBER}" \
     --n_gfm "${N_GFM}" \
+    --gfm-correlation-rule "${GFM_CORRELATION_RULE}" \
     --cutoffs "${CUTOFFS}" \
     --seeds "${SEEDS}" \
     --repeat "${REPEAT}" \
@@ -333,7 +409,14 @@ python3 scMUG.py \
     --red_local "${RED_LOCAL}" \
     --block-b autoencoder \
     --output-tag ae \
-    --output-dir "${DATASET_OUTDIR}"
+    --experiment-id "${EXPERIMENT_ID}" \
+    --run-id "${RUN_ID}" \
+    --canonical-alpha "${FULL_ALPHA}" \
+    --canonical-beta "${FULL_BETA}" \
+    --alpha-beta-grid "${SCMUG_ALPHA_BETA_GRID}" \
+    --computation-outfile "${COMPUTATION_OUTFILE}" \
+    --output-stem "${RUN_STEM}" \
+    --output-dir "${ARTIFACTS_DIR}"
 
 
 
@@ -351,6 +434,7 @@ python3 scMUG.py \
     --dataset "${DATASET}" \
     --cluster_number "${CLUSTER_NUMBER}" \
     --n_gfm "${N_GFM}" \
+    --gfm-correlation-rule "${GFM_CORRELATION_RULE}" \
     --cutoffs "${CUTOFFS}" \
     --seeds "${SEEDS}" \
     --repeat "${REPEAT}" \
@@ -369,37 +453,50 @@ python3 scMUG.py \
     --dmkcn-primary-d "${DMKCN_PRIMARY_D}" \
     --dmkcn-graph-neighbors "${DMKCN_GRAPH_NEIGHBORS}" \
     "${DMKCN_OPTIONAL_ARGS[@]}" \
-    --output-dir "${DATASET_OUTDIR}"
+    --experiment-id "${EXPERIMENT_ID}" \
+    --run-id "${RUN_ID}" \
+    --canonical-alpha "${FULL_ALPHA}" \
+    --canonical-beta "${FULL_BETA}" \
+    --alpha-beta-grid "${SCMUG_ALPHA_BETA_GRID}" \
+    --computation-outfile "${COMPUTATION_OUTFILE}" \
+    --output-stem "${RUN_STEM}" \
+    --output-dir "${ARTIFACTS_DIR}"
 
-echo "=== Run ablation tests from saved latents ==="
+if [ "${RUN_ABLATIONS}" = "true" ]; then
+    echo "=== Run ablation tests from saved latents ==="
 
-python3 ablation_block_c_d.py \
-    --dataset "${DATASET}" \
-    --cluster_number "${CLUSTER_NUMBER}" \
-    --seeds "${SEEDS}" \
-    --repeat "${REPEAT}" \
-    --kmeans_times "${KMEANS_TIMES}" \
-    --n_neighbour "${N_NEIGHBOUR}" \
-    --latents-autoencoder "${LATENTS_AE}" \
-    --latents-dmkcn "${LATENTS_DMKCN}" \
-    --outfile "${OUTFILE}" \
-    --thread-num "${SLURM_CPUS_PER_TASK}" \
-    --full-alpha "${FULL_ALPHA}" \
-    --full-beta "${FULL_BETA}" \
-    --red_global "${RED_GLOBAL}" \
-    --red_local "${RED_LOCAL}"
-
-if [ "${DMKCN_EVALUATE_VARIANTS}" = "true" ]; then
-    echo "=== Evaluate every saved DMKCN K projection through common C/D ==="
     python3 ablation_block_c_d.py \
         --dataset "${DATASET}" \
+        --experiment-id "${EXPERIMENT_ID}" \
+        --run-id "${RUN_ID}" \
         --cluster_number "${CLUSTER_NUMBER}" \
         --seeds "${SEEDS}" \
         --repeat "${REPEAT}" \
         --kmeans_times "${KMEANS_TIMES}" \
         --n_neighbour "${N_NEIGHBOUR}" \
         --latents-autoencoder "${LATENTS_AE}" \
-        --dmkcn-manifest "${DATASET_OUTDIR}/latents_dmkcn_manifest.json" \
+        --latents-dmkcn "${LATENTS_DMKCN}" \
+        --outfile "${OUTFILE}" \
+        --thread-num "${SLURM_CPUS_PER_TASK}" \
+        --full-alpha "${FULL_ALPHA}" \
+        --full-beta "${FULL_BETA}" \
+        --red_global "${RED_GLOBAL}" \
+        --red_local "${RED_LOCAL}"
+fi
+
+if [ "${RUN_ABLATIONS}" = "true" ] && [ "${DMKCN_EVALUATE_VARIANTS}" = "true" ]; then
+    echo "=== Evaluate every saved DMKCN K projection through common C/D ==="
+    python3 ablation_block_c_d.py \
+        --dataset "${DATASET}" \
+        --experiment-id "${EXPERIMENT_ID}" \
+        --run-id "${RUN_ID}" \
+        --cluster_number "${CLUSTER_NUMBER}" \
+        --seeds "${SEEDS}" \
+        --repeat "${REPEAT}" \
+        --kmeans_times "${KMEANS_TIMES}" \
+        --n_neighbour "${N_NEIGHBOUR}" \
+        --latents-autoencoder "${LATENTS_AE}" \
+        --dmkcn-manifest "${DMKCN_MANIFEST}" \
         --outfile "${VARIANT_OUTFILE}" \
         --thread-num "${SLURM_CPUS_PER_TASK}" \
         --full-alpha "${FULL_ALPHA}" \
@@ -408,38 +505,72 @@ if [ "${DMKCN_EVALUATE_VARIANTS}" = "true" ]; then
         --red_local "${RED_LOCAL}"
 fi
 
+if [ -n "${CD_VALIDATION_ALPHA_BETA_GRID}" ]; then
+    echo "=== Run pre-registered C/D validation conditions ==="
+    echo "Alpha/beta pairs: ${CD_VALIDATION_ALPHA_BETA_GRID}"
+    python3 ablation_block_c_d.py \
+        --dataset "${DATASET}" \
+        --experiment-id "${EXPERIMENT_ID}" \
+        --run-id "${RUN_ID}" \
+        --cluster_number "${CLUSTER_NUMBER}" \
+        --seeds "${SEEDS}" \
+        --repeat "${REPEAT}" \
+        --kmeans_times "${KMEANS_TIMES}" \
+        --n_neighbour "${N_NEIGHBOUR}" \
+        --latents-autoencoder "${LATENTS_AE}" \
+        --latents-dmkcn "${LATENTS_DMKCN}" \
+        --outfile "${CD_VALIDATION_OUTFILE}" \
+        --thread-num "${SLURM_CPUS_PER_TASK}" \
+        --red_global "${RED_GLOBAL}" \
+        --red_local "${RED_LOCAL}" \
+        --alpha-beta-grid "${CD_VALIDATION_ALPHA_BETA_GRID}"
+fi
+
 
 echo "=== Generate scMUG-style metric summaries ==="
 
-python3 xp_metrics.py \
-  --dataset "${DATASET}" \
-  --full-autoencoder "${DATASET_OUTDIR}/${DATASET}s_ae.txt" \
-  --full-dmkcn "${DATASET_OUTDIR}/${DATASET}s_dmkcn.txt" \
-  --ablation "${OUTFILE}" \
-  --full-alpha "${FULL_ALPHA}" \
-  --full-beta "${FULL_BETA}" \
-  --outdir "${METRICS_OUTDIR}"
+XP_METRICS_ARGS=(
+    --dataset "${DATASET}"
+    --cluster-number "${CLUSTER_NUMBER}"
+    --experiment-id "${EXPERIMENT_ID}"
+    --run-id "${RUN_ID}"
+    --full-autoencoder "${RAW_AE}"
+    --full-dmkcn "${RAW_DMKCN}"
+    --full-alpha "${FULL_ALPHA}"
+    --full-beta "${FULL_BETA}"
+    --outdir "${RESULTS_DIR}"
+    --metadata-outdir "${ARTIFACTS_DIR}"
+)
+if [ "${RUN_ABLATIONS}" = "true" ]; then
+    XP_METRICS_ARGS+=(--ablation "${OUTFILE}")
+fi
 
 python3 xp_metrics.py \
-  --dataset "${DATASET}" \
-  --full-autoencoder "${DATASET_OUTDIR}/${DATASET}s_ae.txt" \
-  --full-dmkcn "${DATASET_OUTDIR}/${DATASET}s_dmkcn.txt" \
-  --ablation "${OUTFILE}" \
-  --full-alpha "${FULL_ALPHA}" \
-  --full-beta "${FULL_BETA}" \
-  --include-all-alpha-beta \
-  --outdir "${METRICS_ALL_ALPHA_BETA_OUTDIR}"
+    "${XP_METRICS_ARGS[@]}" \
+    --output-prefix "${CANONICAL_METRICS_PREFIX}"
 
-echo "=== Generate executive summary ==="
+if [ "${RUN_ALL_ALPHA_BETA_SUMMARY}" = "true" ]; then
+    python3 xp_metrics.py \
+        "${XP_METRICS_ARGS[@]}" \
+        --include-all-alpha-beta \
+        --output-prefix "${ALL_ALPHA_BETA_METRICS_PREFIX}"
+fi
 
-python3 xp_statistics.py \
-  --dataset "${DATASET}" \
-  --full-autoencoder "${DATASET_OUTDIR}/${DATASET}s_ae.txt" \
-  --full-dmkcn "${DATASET_OUTDIR}/${DATASET}s_dmkcn.txt" \
-  --ablation "${OUTFILE}" \
-  --full-alpha "${FULL_ALPHA}" \
-  --full-beta "${FULL_BETA}" \
-  --outfile "${SUMMARY_OUTFILE}" \
-  --significance-outfile "${SIGNIFICANCE_OUTFILE}"
+if [ "${RUN_STATISTICS}" = "true" ]; then
+    echo "=== Generate executive summary ==="
+
+    python3 xp_statistics.py \
+        --dataset "${DATASET}" \
+        --cluster-number "${CLUSTER_NUMBER}" \
+        --experiment-id "${EXPERIMENT_ID}" \
+        --run-id "${RUN_ID}" \
+        --full-autoencoder "${RAW_AE}" \
+        --full-dmkcn "${RAW_DMKCN}" \
+        --ablation "${OUTFILE}" \
+        --full-alpha "${FULL_ALPHA}" \
+        --full-beta "${FULL_BETA}" \
+        --outfile "${SUMMARY_OUTFILE}" \
+        --significance-outfile "${SIGNIFICANCE_OUTFILE}"
+fi
 
 echo "=== Job finished for ${DATASET} at $(date) ==="

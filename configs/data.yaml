@@ -1,38 +1,48 @@
 baron:
-  cluster_number: 8
+  published_best_k: 8
+  ground_truth_k: 14
   n_gfm: 4
+  gfm_correlation_rule: positive
   gfm_extension_cutoff: 0.08
   full_alpha: 0.001
   full_beta: 1
   dmkcn_allow_pseudo_counts: false
 
 darmanis:
-  cluster_number: 9
+  published_best_k: 9
+  ground_truth_k: 9
   n_gfm: 4
+  gfm_correlation_rule: positive
   gfm_extension_cutoff: 0.31
   full_alpha: 0.01
   full_beta: 1
   dmkcn_allow_pseudo_counts: false
 
-lake:
-  cluster_number: 6
-  n_gfm: 5
-  gfm_extension_cutoff: 0.12
-  full_alpha: 1
-  full_beta: 1
-  dmkcn_allow_pseudo_counts: true
-
 li:
-  cluster_number: 9
+  published_best_k: 9
+  ground_truth_k: 9
   n_gfm: 3
+  gfm_correlation_rule: positive
   gfm_extension_cutoff: 0.33
   full_alpha: 1
   full_beta: 1
   dmkcn_allow_pseudo_counts: false
 
+manno:
+  published_best_k: 7
+  ground_truth_k: 7
+  n_gfm: 4
+  gfm_correlation_rule: positive
+  gfm_extension_cutoff: 0.16
+  full_alpha: 1
+  full_beta: 1
+  dmkcn_allow_pseudo_counts: false
+
 muraro:
-  cluster_number: 7
+  published_best_k: 7
+  ground_truth_k: 9
   n_gfm: 5
+  gfm_correlation_rule: positive
   gfm_extension_cutoff: 0.13
   full_alpha: 0.001
   full_beta: 1

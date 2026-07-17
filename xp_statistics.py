@@ -318,6 +318,9 @@ def main():
     )
 
     parser.add_argument("--dataset", required=True)
+    parser.add_argument("--cluster-number", required=True, type=int)
+    parser.add_argument("--experiment-id", required=True)
+    parser.add_argument("--run-id", required=True)
 
     parser.add_argument("--full-autoencoder", required=True)
     parser.add_argument("--full-dmkcn", required=True)
@@ -370,6 +373,9 @@ def main():
     )
 
     summary = summarize(all_rows)
+    summary.insert(0, "experiment_id", args.experiment_id)
+    summary.insert(1, "run_id", args.run_id)
+    summary.insert(3, "k", args.cluster_number)
 
     if args.outfile is None:
         args.outfile = f"./outputs/summary_comparison_{args.dataset}.csv"
@@ -382,6 +388,15 @@ def main():
     print(f"\nWrote: {args.outfile}")
 
     significance = build_significance_table(all_rows)
+
+    if significance.empty:
+        significance = pd.DataFrame(
+            columns=["experiment_id", "run_id", "dataset", "k"]
+        )
+    else:
+        significance.insert(0, "experiment_id", args.experiment_id)
+        significance.insert(1, "run_id", args.run_id)
+        significance.insert(3, "k", args.cluster_number)
 
     if args.significance_outfile is None:
         args.significance_outfile = f"./outputs/significance_{args.dataset}.csv"

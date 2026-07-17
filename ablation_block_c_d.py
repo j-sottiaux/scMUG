@@ -40,6 +40,7 @@ from utils import (
     calc_acc,
     calc_ari,
     calc_nmi,
+    block_c_kmeans_seed,
     c_kmeans,
     lab2fac,
     load_data,
@@ -94,34 +95,39 @@ def parse_alpha_beta_grid(value):
     return pairs
 
 
-def full_cd_grid_conditions(alpha_beta_pairs):
-    """Return the two block-D conditions evaluated for every C-weight pair."""
+def full_cd_grid_conditions(alpha_beta_pairs, d_modes=("spectral", "kmeans")):
+    """Return the requested block-D conditions for every C-weight pair."""
     conditions = []
     for alpha, beta in alpha_beta_pairs:
-        conditions.extend(
-            [
+        if "spectral" in d_modes:
+            conditions.append(
                 (
                     "C_full_D_spectral",
                     alpha,
                     beta,
                     "full",
                     "spectral_precomputed",
-                ),
+                )
+            )
+        if "kmeans" in d_modes:
+            conditions.append(
                 (
                     "C_full_no_D_kmeans_rows",
                     alpha,
                     beta,
                     "full",
                     "kmeans_affinity_rows",
-                ),
-            ]
-        )
+                )
+            )
     return conditions
 
 
 def clean_array(x):
+    array = np.asarray(x)
+    if not np.issubdtype(array.dtype, np.floating):
+        array = array.astype(float)
     return np.nan_to_num(
-        np.asarray(x, dtype=float),
+        array,
         nan=0.0,
         posinf=0.0,
         neginf=0.0,
@@ -238,18 +244,49 @@ def build_mat2(latent_val, n_neighbour, red_local):
     return get_mat2(n_sample, neighbour_dist, dist, neighbour_dist_score)
 
 
-def build_mat1(latent_val, n_clusters, kmeans_times, red_global, thread_num, seed):
+def reduce_global_views(latent_val, red_global):
+    n_sample, n_gfm, _ = latent_val.shape
+    return [
+        reducer(red_global)(
+            clean_array(latent_val[:, c, :]).reshape(n_sample, -1)
+        )
+        for c in range(n_gfm)
+    ]
+
+
+def build_mat1(
+    latent_val,
+    n_clusters,
+    kmeans_times,
+    red_global,
+    thread_num,
+    seed,
+    repeat_index=0,
+    reduced_views=None,
+):
     n_sample, n_gfm, _ = latent_val.shape
 
     pred = np.zeros((kmeans_times, n_gfm, n_sample)).astype(int)
     score = np.zeros((kmeans_times, n_gfm, n_sample))
 
-    for c in range(n_gfm):
-        z = clean_array(latent_val[:, c, :]).reshape(n_sample, -1)
-        z = reducer(red_global)(z)
+    if reduced_views is None:
+        reduced_views = reduce_global_views(latent_val, red_global)
+    if len(reduced_views) != n_gfm:
+        raise ValueError(
+            f"Expected {n_gfm} reduced GFM views, got {len(reduced_views)}"
+        )
+
+    for c, z in enumerate(reduced_views):
 
         for t in range(kmeans_times):
-            kmeans_seed = seed + c * kmeans_times + t
+            kmeans_seed = block_c_kmeans_seed(
+                seed,
+                repeat_index,
+                c,
+                t,
+                n_gfm,
+                kmeans_times,
+            )
             pred_z, score_z = c_kmeans(
                 z,
                 n_clusters,
@@ -407,7 +444,10 @@ def append_result(
 def evaluate_arm(arm_name, latents, seeds, y, args):
     rows = []
     grid_conditions = (
-        full_cd_grid_conditions(args.alpha_beta_grid)
+        full_cd_grid_conditions(
+            args.alpha_beta_grid,
+            getattr(args, "grid_d_modes", ("spectral", "kmeans")),
+        )
         if args.alpha_beta_grid is not None
         else None
     )
@@ -421,6 +461,7 @@ def evaluate_arm(arm_name, latents, seeds, y, args):
 
         print(f"[{arm_name}] seed={seed}: building C-local mat2")
         mat2 = build_mat2(latent_val, args.n_neighbour, args.red_local)
+        global_views = reduce_global_views(latent_val, args.red_global)
         if grid_conditions is None:
             direct_features = concat_block_c_inputs(
                 latent_val,
@@ -434,7 +475,8 @@ def evaluate_arm(arm_name, latents, seeds, y, args):
                 f"[{arm_name}] seed={seed}: repeat={repeat_idx}, building C-global mat1"
             )
 
-            set_seed(seed + repeat_idx)
+            repeat_seed = seed + repeat_idx
+            set_seed(repeat_seed)
 
             mat1 = build_mat1(
                 latent_val,
@@ -442,7 +484,9 @@ def evaluate_arm(arm_name, latents, seeds, y, args):
                 kmeans_times=args.kmeans_times,
                 red_global=args.red_global,
                 thread_num=args.thread_num,
-                seed=seed + repeat_idx,
+                seed=seed,
+                repeat_index=repeat_idx,
+                reduced_views=global_views,
             )
 
             if grid_conditions is not None:
@@ -456,13 +500,13 @@ def evaluate_arm(arm_name, latents, seeds, y, args):
                         labels = spectral_precomputed(
                             mat_full,
                             args.cluster_number,
-                            seed + repeat_idx,
+                            repeat_seed,
                         )
                     elif d_mode == "kmeans_affinity_rows":
                         labels = kmeans_affinity_rows(
                             mat_full,
                             args.cluster_number,
-                            seed + repeat_idx,
+                            repeat_seed,
                             args.direct_kmeans_n_init,
                         )
                     else:  # pragma: no cover - guarded by full_cd_grid_conditions
@@ -608,13 +652,22 @@ def summarise(rows):
     return summary
 
 
-def write_outputs(rows, outfile):
+def write_outputs(
+    rows,
+    outfile,
+    *,
+    dataset,
+    cluster_number,
+    experiment_id,
+    run_id,
+):
     os.makedirs(os.path.dirname(outfile) or ".", exist_ok=True)
 
     summary_file = outfile.replace(".tsv", "_summary.tsv")
 
     with open(outfile, "w", encoding="utf-8") as f:
         f.write(
+            "experiment_id\trun_id\tdataset\tk\t"
             "arm\tseed\trepeat\tmethod\talpha\tbeta\tc_mode\td_mode\t"
             "red_global\tred_local\tnmi\tari\tacc\n"
         )
@@ -637,6 +690,7 @@ def write_outputs(rows, outfile):
             ) = row
 
             f.write(
+                f"{experiment_id}\t{run_id}\t{dataset}\t{cluster_number}\t"
                 f"{arm}\t{seed}\t{repeat_idx}\t{method}\t"
                 f"{alpha}\t{beta}\t{c_mode}\t{d_mode}\t"
                 f"{red_global}\t{red_local}\t"
@@ -645,6 +699,7 @@ def write_outputs(rows, outfile):
 
     with open(summary_file, "w", encoding="utf-8") as f:
         f.write(
+            "experiment_id\trun_id\tdataset\tk\t"
             "arm\tmethod\talpha\tbeta\tc_mode\td_mode\tred_global\tred_local\tn\t"
             "nmi_mean\tari_mean\tacc_mean\t"
             "nmi_std\tari_std\tacc_std\t"
@@ -678,6 +733,7 @@ def write_outputs(rows, outfile):
             ) = row
 
             f.write(
+                f"{experiment_id}\t{run_id}\t{dataset}\t{cluster_number}\t"
                 f"{arm}\t{method}\t{alpha}\t{beta}\t"
                 f"{c_mode}\t{d_mode}\t{red_global}\t{red_local}\t{n}\t"
                 f"{nmi_m:.6f}\t{ari_m:.6f}\t{acc_m:.6f}\t"
@@ -696,6 +752,8 @@ def main():
     )
 
     parser.add_argument("--dataset", default="muraro", type=str)
+    parser.add_argument("--experiment-id", default="main")
+    parser.add_argument("--run-id", default="local")
 
     parser.add_argument(
         "--cluster_number",
@@ -706,6 +764,13 @@ def main():
     )
 
     parser.add_argument("--seeds", default=DEFAULT_SEEDS, type=str)
+
+    parser.add_argument(
+        "--arm",
+        choices=["both", "autoencoder", "dmkcn"],
+        default="both",
+        help="Representation arm evaluated by this invocation.",
+    )
 
     parser.add_argument(
         "--latents-autoencoder",
@@ -763,6 +828,15 @@ def main():
     )
 
     parser.add_argument(
+        "--grid-d-modes",
+        default="spectral,kmeans",
+        help=(
+            "Comma-separated D modes used with --alpha-beta-grid: spectral and/or "
+            "kmeans. Use spectral for the scMUG alpha/beta tuning protocol."
+        ),
+    )
+
+    parser.add_argument(
         "--direct-knn",
         "--knn",
         dest="direct_knn",
@@ -779,6 +853,15 @@ def main():
     )
 
     args = parser.parse_args()
+    args.grid_d_modes = tuple(
+        mode.strip() for mode in args.grid_d_modes.split(",") if mode.strip()
+    )
+    invalid_grid_modes = sorted(set(args.grid_d_modes).difference({"spectral", "kmeans"}))
+    if invalid_grid_modes or not args.grid_d_modes:
+        raise ValueError(
+            "--grid-d-modes must contain spectral and/or kmeans; "
+            f"invalid values: {invalid_grid_modes}"
+        )
 
     seeds = [int(x) for x in args.seeds.split(",")]
 
@@ -815,20 +898,21 @@ def main():
             f"red_global={args.red_global}; red_local={args.red_local}"
         )
 
-    latents_auto = load_latent_list(args.latents_autoencoder, seeds)
     rows = []
 
-    rows.extend(
-        evaluate_arm(
-            "autoencoder",
-            latents_auto,
-            seeds,
-            y,
-            args,
+    if args.arm in {"both", "autoencoder"}:
+        latents_auto = load_latent_list(args.latents_autoencoder, seeds)
+        rows.extend(
+            evaluate_arm(
+                "autoencoder",
+                latents_auto,
+                seeds,
+                y,
+                args,
+            )
         )
-    )
 
-    if args.dmkcn_manifest:
+    if args.arm in {"both", "dmkcn"} and args.dmkcn_manifest:
         with open(args.dmkcn_manifest, "r", encoding="utf-8") as handle:
             manifest = json.load(handle)
         variant_paths = manifest.get("variant_paths", {})
@@ -847,7 +931,7 @@ def main():
                     args,
                 )
             )
-    else:
+    elif args.arm in {"both", "dmkcn"}:
         latents_dmkcn = load_latent_list(args.latents_dmkcn, seeds)
         rows.extend(
             evaluate_arm(
@@ -859,7 +943,14 @@ def main():
             )
         )
 
-    write_outputs(rows, args.outfile)
+    write_outputs(
+        rows,
+        args.outfile,
+        dataset=args.dataset,
+        cluster_number=args.cluster_number,
+        experiment_id=args.experiment_id,
+        run_id=args.run_id,
+    )
 
 
 if __name__ == "__main__":

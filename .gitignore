@@ -183,9 +183,9 @@ pyrightconfig.json
 outputs/
 datasets/
 logs/
-publication/
+tests/
 docs/
-tests/*
+.claude/
 
 # macOS
 .DS_Store

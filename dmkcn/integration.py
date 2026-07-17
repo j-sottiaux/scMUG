@@ -37,6 +37,7 @@ from sklearn.decomposition import TruncatedSVD
 from sklearn.manifold import SpectralEmbedding
 from sklearn.preprocessing import normalize
 
+from computation_metrics import synchronized_elapsed, synchronized_start
 from .preprocessing import from_scmug_anndata
 from .trainer import ScDMKCTrainer
 
@@ -319,6 +320,7 @@ def dmkcn_block_b(
     joint phase can be toggled back on later). fit() is called WITHOUT labels, so
     no ground truth ever enters training.
     """
+    preprocessing_started = synchronized_start()
     data = from_scmug_anndata(
         adata,
         gene_subset=gene_list,
@@ -331,7 +333,9 @@ def dmkcn_block_b(
             "likelihood. Use raw counts for ZINB or disable the ZINB branch in a "
             "dedicated ablation."
         )
+    preprocessing_seconds = synchronized_elapsed(preprocessing_started)
 
+    training_started = synchronized_start()
     trainer = ScDMKCTrainer(
         n_clusters=n_clusters,
         encoder_hidden=(500, 500, 2000, 10),
@@ -350,6 +354,7 @@ def dmkcn_block_b(
         verbose=verbose,
     )
     trainer.fit(data.X_input, X_zinb, data.size_factors)  # no y -> no label leakage
+    training_seconds = synchronized_elapsed(training_started)
 
     K = trainer.kernel_representation_  # (n_cells, n_cells)
     requested_projections = list(projections or [primary_projection])
@@ -359,6 +364,7 @@ def dmkcn_block_b(
     if d not in requested_dims:
         requested_dims.append(d)
 
+    projection_started = synchronized_start()
     embeddings, projection_diagnostics = embeddings_from_K(
         K,
         projections=requested_projections,
@@ -367,9 +373,15 @@ def dmkcn_block_b(
         nonneg=nonneg,
         graph_neighbors=graph_neighbors,
     )
+    projection_seconds = synchronized_elapsed(projection_started)
     primary_key = embedding_key(primary_projection, d)
     count_contract = dict(getattr(adata, "uns", {}).get("count_contract", {}))
     artifacts = {
+        "timings": {
+            "dmkcn_preprocessing": preprocessing_seconds,
+            "dmkcn_training": training_seconds,
+            "k_projection": projection_seconds,
+        },
         "embeddings": embeddings,
         "primary_key": primary_key,
         "labels_K_raw": trainer.labels_.copy(),

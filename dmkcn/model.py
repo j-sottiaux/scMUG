@@ -197,9 +197,13 @@ class ScDMKC(nn.Module):
     # ------------------------------------------------------- clustering helpers
     def soft_assign(self, K: torch.Tensor) -> torch.Tensor:
         """Student-t soft assignment of each kernel row k_i to centers (eq. 14)."""
-        # ||k_i - v_c||^2 : (N, C)
-        diff = K.unsqueeze(1) - self.cluster_centers.unsqueeze(0)  # (N, C, N)
-        dist2 = diff.pow(2).sum(dim=2)  # (N, C)
+        # Avoid the O(N^2 C) intermediate created by explicit broadcasting.
+        row_norm2 = K.square().sum(dim=1, keepdim=True)
+        center_norm2 = self.cluster_centers.square().sum(dim=1).unsqueeze(0)
+        dist2 = row_norm2 + center_norm2 - 2.0 * K.matmul(
+            self.cluster_centers.transpose(0, 1)
+        )
+        dist2 = dist2.clamp_min(0.0)
         num = (1.0 + dist2 / self.alpha).pow(-(self.alpha + 1.0) / 2.0)
         q = num / num.sum(dim=1, keepdim=True).clamp_min(1e-12)
         return q

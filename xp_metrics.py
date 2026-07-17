@@ -17,7 +17,6 @@ import os
 import platform
 import re
 import socket
-import subprocess
 import sys
 import time
 from pathlib import Path
@@ -51,26 +50,6 @@ def _same_float(a: Any, b: Any, tol: float = 1e-12) -> bool:
     if np.isnan(a_float) or np.isnan(b_float):
         return False
     return abs(a_float - b_float) <= tol
-
-
-def _git_value(args: list[str]) -> str | None:
-    try:
-        return subprocess.check_output(
-            ["git", *args],
-            text=True,
-            stderr=subprocess.DEVNULL,
-        ).strip()
-    except Exception:
-        return None
-
-
-def git_info() -> dict[str, Any]:
-    status = _git_value(["status", "--short"])
-    return {
-        "commit": _git_value(["rev-parse", "HEAD"]),
-        "dirty": bool(status),
-        "status_short": status,
-    }
 
 
 def append_jsonl(path: Path, payload: dict[str, Any]) -> None:
@@ -209,7 +188,10 @@ def metric_stats(frame: pd.DataFrame, group_cols: list[str]) -> pd.DataFrame:
 
 def summarize(raw_metrics: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     key_cols = [
+        "experiment_id",
+        "run_id",
         "dataset",
+        "k",
         "model",
         "condition",
         "alpha",
@@ -249,7 +231,10 @@ def build_run_details(
         pairs = sorted(pairs, key=lambda pair: (str(pair[0]), str(pair[1])))
         rows.append(
             {
+                "experiment_id": args.experiment_id,
+                "run_id": args.run_id,
                 "dataset": args.dataset,
+                "k": args.cluster_number,
                 "source_file": source_file,
                 "model": model,
                 "source": source,
@@ -276,10 +261,11 @@ def write_outputs(
     seed_means: pd.DataFrame,
     condition_summary: pd.DataFrame,
     run_details: pd.DataFrame,
-    output_paths: dict[str, Path],
+    output_paths: dict[str, Path | str],
     provenance: dict[str, Any],
 ) -> None:
     output_paths["outdir"].mkdir(parents=True, exist_ok=True)
+    output_paths["metadata_outdir"].mkdir(parents=True, exist_ok=True)
     raw_metrics.to_csv(output_paths["raw_metrics"], index=False)
     seed_means.to_csv(output_paths["seed_means"], index=False)
     condition_summary.to_csv(output_paths["condition_summary"], index=False)
@@ -291,29 +277,41 @@ def write_outputs(
     append_jsonl(output_paths["provenance"], provenance)
 
 
-def make_output_paths(outdir: Path) -> dict[str, Path]:
+def make_output_paths(
+    outdir: Path,
+    metadata_outdir: Path,
+    output_prefix: str,
+) -> dict[str, Path | str]:
+    if output_prefix != Path(output_prefix).name or output_prefix in {".", ".."}:
+        raise ValueError("output_prefix must be a filename prefix, not a path")
     created_at = time.strftime("%Y%m%d_%H%M%S")
     return {
         "outdir": outdir,
+        "metadata_outdir": metadata_outdir,
         "created_at": created_at,
-        "raw_metrics": outdir / "raw_metrics.csv",
-        "seed_means": outdir / "seed_means.csv",
-        "condition_summary": outdir / "condition_summary.csv",
-        "run_details": outdir / "run_details.csv",
-        "provenance": outdir / "provenance.jsonl",
-        "run_started": outdir / "run_started.json",
+        "raw_metrics": outdir / f"{output_prefix}_raw_metrics.csv",
+        "seed_means": outdir / f"{output_prefix}_seed_means.csv",
+        "condition_summary": outdir / f"{output_prefix}_condition_summary.csv",
+        "run_details": outdir / f"{output_prefix}_run_details.csv",
+        "provenance": metadata_outdir / f"{output_prefix}_metrics_events.jsonl",
+        "run_started": metadata_outdir / f"{output_prefix}_metrics_manifest.json",
     }
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset", required=True)
+    parser.add_argument("--cluster-number", required=True, type=int)
+    parser.add_argument("--experiment-id", required=True)
+    parser.add_argument("--run-id", required=True)
     parser.add_argument("--full-autoencoder", required=True, type=Path)
     parser.add_argument("--full-dmkcn", required=True, type=Path)
     parser.add_argument("--ablation", type=Path, default=None)
     parser.add_argument("--full-alpha", required=True, type=float)
     parser.add_argument("--full-beta", required=True, type=float)
     parser.add_argument("--outdir", required=True, type=Path)
+    parser.add_argument("--metadata-outdir", required=True, type=Path)
+    parser.add_argument("--output-prefix", required=True)
     parser.add_argument(
         "--include-all-alpha-beta",
         action="store_true",
@@ -324,7 +322,11 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    output_paths = make_output_paths(args.outdir)
+    output_paths = make_output_paths(
+        args.outdir,
+        args.metadata_outdir,
+        args.output_prefix,
+    )
 
     frames = [
         parse_full_txt(
@@ -348,6 +350,9 @@ def main() -> None:
         frames.append(read_ablation_tsv(args.ablation, dataset=args.dataset))
 
     raw_metrics = pd.concat(frames, ignore_index=True)
+    raw_metrics.insert(0, "experiment_id", args.experiment_id)
+    raw_metrics.insert(1, "run_id", args.run_id)
+    raw_metrics.insert(3, "k", int(args.cluster_number))
     seed_means, condition_summary = summarize(raw_metrics)
 
     provenance = {
@@ -357,14 +362,20 @@ def main() -> None:
         "platform": platform.platform(),
         "python": sys.version,
         "cwd": os.getcwd(),
-        "git": git_info(),
+        "experiment_id": args.experiment_id,
+        "run_id": args.run_id,
         "dataset": args.dataset,
+        "k": args.cluster_number,
         "inputs": {
             "full_autoencoder": str(args.full_autoencoder),
             "full_dmkcn": str(args.full_dmkcn),
             "ablation": None if args.ablation is None else str(args.ablation),
         },
-        "outputs": {key: str(value) for key, value in output_paths.items() if key != "outdir"},
+        "outputs": {
+            key: str(value)
+            for key, value in output_paths.items()
+            if key not in {"outdir", "metadata_outdir", "created_at"}
+        },
         "parameters": {
             "full_alpha": args.full_alpha,
             "full_beta": args.full_beta,

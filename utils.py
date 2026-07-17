@@ -1,7 +1,9 @@
 import torch
 import h5py
 import joblib
+import os
 import random
+import tempfile
 import anndata
 import platform
 import warnings
@@ -23,6 +25,45 @@ from sklearn.metrics import (
 from gcorr import pearson
 
 warnings.filterwarnings("ignore")
+
+
+def atomic_joblib_dump(value, path):
+    """Write a joblib artifact atomically within its destination directory."""
+    target = os.fspath(path)
+    directory = os.path.dirname(os.path.abspath(target))
+    os.makedirs(directory, exist_ok=True)
+    descriptor, temporary = tempfile.mkstemp(
+        prefix=f".{os.path.basename(target)}.",
+        suffix=".tmp",
+        dir=directory,
+    )
+    os.close(descriptor)
+    try:
+        joblib.dump(value, temporary)
+        os.replace(temporary, target)
+    except Exception:
+        try:
+            os.unlink(temporary)
+        except FileNotFoundError:
+            pass
+        raise
+
+
+def block_c_kmeans_seed(
+    base_seed,
+    repeat_index,
+    gfm_index,
+    trial_index,
+    n_gfm,
+    kmeans_times,
+):
+    """Return deterministic, non-overlapping KMeans seeds across repetitions."""
+    return int(
+        base_seed
+        + repeat_index * n_gfm * kmeans_times
+        + gfm_index * kmeans_times
+        + trial_index
+    )
 
 
 ########################################## Data Loader ############################################
@@ -409,7 +450,13 @@ def get_core_sub_graph_genes(adata, t=0.2):
     return adata.var.index[np.array(ids_map[key])].to_numpy()
 
 
-def extend_gfm(adata, genes, t=0.2, d=3):
+def extend_gfm(adata, genes, t=0.2, d=3, correlation_rule="positive"):
+    """Expand a GFM using positive Fisher-transformed correlations only."""
+    if correlation_rule != "positive":
+        raise ValueError(
+            "Only correlation_rule='positive' is supported to match the "
+            "public scMUG implementation."
+        )
     esp = 1e-6
     expr_matrix = adata.X
     corr = pearson(expr_matrix).to_numpy()
@@ -428,12 +475,23 @@ def extend_gfm(adata, genes, t=0.2, d=3):
     return genes
 
 
-def get_cutoff(adata, gfm, target=3000):
+def get_cutoff(adata, gfm, target=3000, correlation_rule="positive"):
+    """Find the largest positive-correlation cutoff reaching ``target`` genes."""
+    if correlation_rule != "positive":
+        raise ValueError(
+            "Only correlation_rule='positive' is supported to match the "
+            "public scMUG implementation."
+        )
     low, high = 5, 100
     gfm = list(set(gfm) & set(adata.var.index))
     while low < high:
         mid = (low + high + 1) // 2
-        gene_list = extend_gfm(adata, gfm, mid / 100)
+        gene_list = extend_gfm(
+            adata,
+            gfm,
+            mid / 100,
+            correlation_rule=correlation_rule,
+        )
         if len(gene_list) >= target:
             low = mid
         else:
