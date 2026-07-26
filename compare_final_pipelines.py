@@ -152,6 +152,107 @@ def canonical_recomputation_consistency(
     return merged.sort_values(["dataset", "model"]).reset_index(drop=True)
 
 
+def canonical_recomputation_seed_consistency(
+    alpha_seed_scores: pd.DataFrame,
+    k_seed_scores: pd.DataFrame,
+    best_k: pd.DataFrame,
+    config: dict,
+) -> pd.DataFrame:
+    frames = []
+    for row in best_k.itertuples(index=False):
+        alpha = float(config[row.dataset]["full_alpha"])
+        beta = float(config[row.dataset]["full_beta"])
+        direct_mask = (
+            (k_seed_scores["dataset"] == row.dataset)
+            & (k_seed_scores["model"] == row.model)
+            & (k_seed_scores["k"] == row.k)
+            & np.isclose(k_seed_scores["alpha"], alpha)
+            & np.isclose(k_seed_scores["beta"], beta)
+        )
+        recomputed_mask = (
+            (alpha_seed_scores["dataset"] == row.dataset)
+            & (alpha_seed_scores["model"] == row.model)
+            & (alpha_seed_scores["k"] == row.k)
+            & np.isclose(alpha_seed_scores["alpha"], alpha)
+            & np.isclose(alpha_seed_scores["beta"], beta)
+        )
+        direct = k_seed_scores.loc[direct_mask, ["seed", *METRICS]].copy()
+        recomputed = alpha_seed_scores.loc[
+            recomputed_mask, ["seed", *METRICS]
+        ].copy()
+
+        for label, table in (("direct", direct), ("recomputed", recomputed)):
+            if table.empty:
+                raise ValueError(
+                    f"No canonical {label} seed scores for {row.dataset}, "
+                    f"{row.model}, k={row.k}, alpha={alpha}, beta={beta}."
+                )
+            duplicated = table["seed"].duplicated(keep=False)
+            if duplicated.any():
+                seeds = sorted(table.loc[duplicated, "seed"].unique())
+                raise ValueError(
+                    f"Duplicated canonical {label} seeds for {row.dataset}, "
+                    f"{row.model}, k={row.k}: {seeds}"
+                )
+
+        direct_seeds = set(direct["seed"])
+        recomputed_seeds = set(recomputed["seed"])
+        if direct_seeds != recomputed_seeds:
+            raise ValueError(
+                f"Canonical direct/recomputed seed mismatch for {row.dataset}, "
+                f"{row.model}, k={row.k}. Missing from recomputed: "
+                f"{sorted(direct_seeds - recomputed_seeds)}; missing from direct: "
+                f"{sorted(recomputed_seeds - direct_seeds)}"
+            )
+
+        paired = direct.merge(
+            recomputed,
+            on="seed",
+            suffixes=("_direct", "_recomputed"),
+            validate="one_to_one",
+        )
+        paired.insert(0, "beta", beta)
+        paired.insert(0, "alpha", alpha)
+        paired.insert(0, "k", int(row.k))
+        paired.insert(0, "model", row.model)
+        paired.insert(0, "dataset", row.dataset)
+        for metric in METRICS:
+            paired[f"{metric}_paired_delta"] = (
+                paired[f"{metric}_recomputed"] - paired[f"{metric}_direct"]
+            )
+        frames.append(paired)
+
+    return (
+        pd.concat(frames, ignore_index=True)
+        .sort_values(["dataset", "model", "seed"])
+        .reset_index(drop=True)
+    )
+
+
+def summarize_canonical_seed_consistency(
+    seed_consistency: pd.DataFrame,
+) -> pd.DataFrame:
+    keys = ["dataset", "model", "k", "alpha", "beta"]
+    rows = []
+    for key, frame in seed_consistency.groupby(keys, sort=True, dropna=False):
+        row = dict(zip(keys, key))
+        row["n_paired_seeds"] = len(frame)
+        for metric in METRICS:
+            delta = pd.to_numeric(
+                frame[f"{metric}_paired_delta"], errors="raise"
+            ).to_numpy(dtype=float)
+            if not np.isfinite(delta).all():
+                raise ValueError(
+                    f"{metric} canonical paired deltas must be finite for {key}."
+                )
+            row[f"{metric}_paired_mean_delta"] = float(np.mean(delta))
+            row[f"{metric}_paired_median_delta"] = float(np.median(delta))
+            row[f"{metric}_paired_mean_abs_delta"] = float(np.mean(np.abs(delta)))
+            row[f"{metric}_paired_max_abs_delta"] = float(np.max(np.abs(delta)))
+        rows.append(row)
+    return pd.DataFrame(rows).sort_values(keys).reset_index(drop=True)
+
+
 def select_reference_k(
     table: pd.DataFrame,
     config: dict,
@@ -187,15 +288,26 @@ def validate_canonical_consistency(
 ) -> None:
     if max_abs_nmi_delta < 0:
         raise ValueError("Canonical NMI tolerance must be non-negative.")
-    delta_column = "NMI_recomputed_minus_direct"
+    delta_column = "NMI_paired_median_delta"
     deltas = pd.to_numeric(consistency[delta_column], errors="raise").abs()
     if not np.isfinite(deltas).all():
-        raise ValueError("Canonical direct/recomputed NMI deltas must be finite.")
+        raise ValueError(
+            "Canonical paired-median direct/recomputed NMI deltas must be finite."
+        )
     invalid = consistency.loc[deltas > max_abs_nmi_delta]
     if not invalid.empty:
-        details = invalid[["dataset", "model", "k", delta_column]].to_dict("records")
+        detail_columns = [
+            "dataset",
+            "model",
+            "k",
+            delta_column,
+            "NMI_paired_mean_abs_delta",
+            "NMI_paired_max_abs_delta",
+        ]
+        details = invalid[detail_columns].to_dict("records")
         raise ValueError(
-            "Canonical direct/recomputed NMI consistency threshold exceeded "
+            "Canonical paired-median direct/recomputed NMI consistency threshold "
+            "exceeded "
             f"(tolerance={max_abs_nmi_delta}): {details}"
         )
 
@@ -240,7 +352,10 @@ def parse_args() -> argparse.Namespace:
         "--max-canonical-nmi-delta",
         type=float,
         default=0.01,
-        help="Maximum absolute median-NMI delta between direct and recomputed C/D.",
+        help=(
+            "Maximum absolute median of paired seed-level NMI deltas between "
+            "direct and recomputed C/D."
+        ),
     )
     return parser.parse_args()
 
@@ -308,9 +423,26 @@ def main() -> None:
     consistency = canonical_recomputation_consistency(
         alpha_summary, k_scores, best_k, config
     )
-    validate_canonical_consistency(consistency, args.max_canonical_nmi_delta)
+    seed_consistency = canonical_recomputation_seed_consistency(
+        alpha_seed_scores, k_seed_scores, best_k, config
+    )
+    paired_consistency = summarize_canonical_seed_consistency(seed_consistency)
+    consistency = consistency.merge(
+        paired_consistency,
+        on=["dataset", "model", "k", "alpha", "beta"],
+        how="inner",
+        validate="one_to_one",
+    )
 
     args.outdir.mkdir(parents=True, exist_ok=True)
+    consistency.to_csv(
+        args.outdir / "canonical_recomputation_consistency.csv", index=False
+    )
+    seed_consistency.to_csv(
+        args.outdir / "canonical_recomputation_seed_deltas.csv", index=False
+    )
+    validate_canonical_consistency(consistency, args.max_canonical_nmi_delta)
+
     optimized.to_csv(args.outdir / "optimized_model_comparison.csv", index=False)
     optimized_paired.to_csv(
         args.outdir / "optimized_paired_seed_tests.csv", index=False
@@ -327,10 +459,6 @@ def main() -> None:
     ground_truth_paired.to_csv(
         args.outdir / "controlled_ground_truth_k_paired_seed_tests.csv", index=False
     )
-    consistency.to_csv(
-        args.outdir / "canonical_recomputation_consistency.csv", index=False
-    )
-
     manifest = {
         "created_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "datasets": datasets,
@@ -342,6 +470,17 @@ def main() -> None:
             "canonical_direct_vs_recomputed_from_latents",
         ],
         "max_canonical_nmi_delta": args.max_canonical_nmi_delta,
+        "canonical_consistency_threshold_statistic": (
+            "absolute median of paired seed-level "
+            "NMI_recomputed_minus_direct deltas"
+        ),
+        "canonical_consistency_diagnostics": [
+            "difference_of_marginal_medians",
+            "paired_mean_delta",
+            "paired_median_delta",
+            "paired_mean_absolute_delta",
+            "paired_max_absolute_delta",
+        ],
         "paired_test": "two-sided Wilcoxon signed-rank across matched seeds",
         "fdr": "Benjamini-Hochberg separately across datasets for each metric",
         "inputs": {
