@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Resolve the Li/Manno campaign-2 SLURM tasks without touching result files."""
+"""Resolve the Darmanis/Li/Manno campaign-2 tasks without touching results."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from dmkcn.lambda_config import LambdaConfiguration, load_lambda_configuration
 from read_configs import bash_export, ordered_datasets
 
 
-CAMPAIGN_DATASETS = ("li", "manno")
+CAMPAIGN_DATASETS = ("darmanis", "li", "manno")
 K_MIN = 5
 K_MAX = 20
 MODEL = "scMUG-DMKCN"
@@ -38,7 +38,7 @@ def validate_campaign_config(config: LambdaConfiguration) -> None:
     observed = tuple(config.datasets)
     if observed != CAMPAIGN_DATASETS:
         raise ValueError(
-            "Campaign 2 is frozen to Li and Manno in alphabetical order; "
+            "Campaign 2 is frozen to Darmanis, Li and Manno in alphabetical order; "
             f"observed {observed} in {config.source_file}."
         )
     if config.fallback != "error":
@@ -122,8 +122,8 @@ def load_best_k_tasks(
         CAMPAIGN_DATASETS
     ):
         raise ValueError(
-            "Selected-K table must contain exactly one scMUG-DMKCN row for Li "
-            f"and Manno; observed {observed}."
+            "Selected-K table must contain exactly one scMUG-DMKCN row for "
+            f"Darmanis, Li and Manno; observed {observed}."
         )
 
     by_dataset = {row["dataset"]: row for row in selected}

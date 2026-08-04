@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate and consolidate the Li/Manno scMUG-DMKCN campaign-2 results."""
+"""Validate and consolidate Darmanis/Li/Manno scMUG-DMKCN campaign-2 results."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ from summarize_alpha_beta import DEFAULT_GRID
 from xp_statistics import fdr_bh
 
 
-DATASETS = ("li", "manno")
+DATASETS = ("darmanis", "li", "manno")
 MODEL = "scMUG-DMKCN"
 ARM = "dmkcn"
 METRICS = ("NMI", "ARI", "ACC")
@@ -82,8 +82,8 @@ def load_data_config(path: Path) -> dict[str, dict[str, Any]]:
 def validate_lambda_scope(config: LambdaConfiguration) -> None:
     if tuple(config.datasets) != DATASETS or config.fallback != "error":
         raise ValueError(
-            "Campaign-2 lambda configuration must contain exactly Li and Manno "
-            "with fallback set to error."
+            "Campaign-2 lambda configuration must contain exactly Darmanis, Li "
+            "and Manno with fallback set to error."
         )
 
 
@@ -451,7 +451,9 @@ def summarize_alpha_beta(args: argparse.Namespace) -> None:
         (best_k["dataset"].isin(DATASETS)) & (best_k["model"] == MODEL)
     ].copy()
     if len(best_k) != len(DATASETS) or set(best_k["dataset"]) != set(DATASETS):
-        raise ValueError("Selected-K table must contain exactly Li and Manno.")
+        raise ValueError(
+            "Selected-K table must contain exactly Darmanis, Li and Manno."
+        )
 
     manifests = load_manifests(
         args.input_root,
@@ -681,7 +683,9 @@ def compare_with_campaign1(args: argparse.Namespace) -> None:
 
     new_best = new_best.loc[new_best["dataset"].isin(DATASETS)].copy()
     if len(new_best) != len(DATASETS) or set(new_best["dataset"]) != set(DATASETS):
-        raise ValueError("New selected table must contain exactly Li and Manno.")
+        raise ValueError(
+            "New selected table must contain exactly Darmanis, Li and Manno."
+        )
     new_selected = select_seed_rows(new_seed_scores, new_best)
 
     summary_rows = []

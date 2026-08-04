@@ -1,5 +1,5 @@
 #!/bin/bash
-# Submit the Li/Manno campaign-2 dependency chain.
+# Submit the Darmanis/Li/Manno campaign-2 dependency chain.
 #
 # Dry-run:
 #   DRY_RUN=true SCMUG_CPU_PARTITION=<cpu_partition> \
