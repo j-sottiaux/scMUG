@@ -7,15 +7,16 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=64G
-#SBATCH --array=0-2%2
+#SBATCH --array=0-3%2
 #SBATCH --mail-type=END,FAIL
 
 set -euo pipefail
 
 # Campaign task mapping:
-#   0 = Darmanis
-#   1 = Li
-#   2 = Manno
+#   0 = Baron
+#   1 = Darmanis
+#   2 = Li
+#   3 = Manno
 PROJECT_DIR="${PROJECT_DIR:-/home/julien.sottiaux/scMUG}"
 CONFIG_FILE="${CONFIG_FILE:-${PROJECT_DIR}/configs/data.yaml}"
 LAMBDA_CONFIG="${LAMBDA_CONFIG:-${PROJECT_DIR}/configs/dmkcn_lambdas_triplets}"
@@ -29,7 +30,7 @@ SEEDS="${SEEDS:-1111,2222,3333,4444,5555,6666,7777,8888,9999,10000}"
 REPEAT="${REPEAT:-3}"
 KMEANS_TIMES="${KMEANS_TIMES:-20}"
 ALPHA_BETA_GRID="${ALPHA_BETA_GRID:-0:1,0.001:1,0.01:1,0.1:1,1:1,1:0.1,1:0.01,1:0.001,1:0}"
-SLURM_ARRAY_TASK_ID="${SLURM_ARRAY_TASK_ID:?Set SLURM_ARRAY_TASK_ID (0-2)}"
+SLURM_ARRAY_TASK_ID="${SLURM_ARRAY_TASK_ID:?Set SLURM_ARRAY_TASK_ID (0-3)}"
 
 case "${DRY_RUN}" in
     true|false) ;;

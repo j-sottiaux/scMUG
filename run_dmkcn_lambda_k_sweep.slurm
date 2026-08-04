@@ -9,15 +9,16 @@
 #SBATCH --mem=128G
 #SBATCH --gpus=L40S:1
 #SBATCH --partition=gpuai
-#SBATCH --array=0-47%2
+#SBATCH --array=0-63%2
 #SBATCH --mail-type=END,FAIL
 
 set -euo pipefail
 
 # Campaign task mapping:
-#   0..15  = Darmanis, K=5..20
-#   16..31 = Li,       K=5..20
-#   32..47 = Manno,    K=5..20
+#   0..15  = Baron,    K=5..20
+#   16..31 = Darmanis, K=5..20
+#   32..47 = Li,       K=5..20
+#   48..63 = Manno,    K=5..20
 PROJECT_DIR="${PROJECT_DIR:-/home/julien.sottiaux/scMUG}"
 CONFIG_FILE="${CONFIG_FILE:-${PROJECT_DIR}/configs/data.yaml}"
 LAMBDA_CONFIG="${LAMBDA_CONFIG:-${PROJECT_DIR}/configs/dmkcn_lambdas_triplets}"
@@ -35,7 +36,7 @@ DMKCN_EMBEDDING_DIMS="${DMKCN_EMBEDDING_DIMS:-32}"
 DMKCN_PRIMARY_PROJECTION="${DMKCN_PRIMARY_PROJECTION:-spectral_dense}"
 DMKCN_PRIMARY_D="${DMKCN_PRIMARY_D:-32}"
 DMKCN_GRAPH_NEIGHBORS="${DMKCN_GRAPH_NEIGHBORS:-30}"
-SLURM_ARRAY_TASK_ID="${SLURM_ARRAY_TASK_ID:?Set SLURM_ARRAY_TASK_ID (0-47)}"
+SLURM_ARRAY_TASK_ID="${SLURM_ARRAY_TASK_ID:?Set SLURM_ARRAY_TASK_ID (0-63)}"
 
 case "${DRY_RUN}" in
     true|false) ;;

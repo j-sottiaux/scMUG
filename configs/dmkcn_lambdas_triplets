@@ -18,6 +18,7 @@ candidates:
     lambda3: 0.5
 
 datasets:
+  baron: l3_high
   darmanis: canonical
   li: l1_low
   manno: l3_high

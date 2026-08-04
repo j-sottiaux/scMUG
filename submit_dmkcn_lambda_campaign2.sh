@@ -1,5 +1,5 @@
 #!/bin/bash
-# Submit the Darmanis/Li/Manno campaign-2 dependency chain.
+# Submit the Baron/Darmanis/Li/Manno campaign-2 dependency chain.
 #
 # Dry-run:
 #   DRY_RUN=true SCMUG_CPU_PARTITION=<cpu_partition> \
@@ -30,6 +30,16 @@ if [ "${DRY_RUN}" = "true" ]; then
     echo "  sbatch --partition=${SCMUG_CPU_PARTITION} --dependency=afterok:<alpha_job> summarize_dmkcn_lambda_alpha_beta.slurm"
     exit 0
 fi
+
+for existing_root in \
+    "${PROJECT_DIR}/outputs/dmkcn_lambda_campaign2" \
+    "${PROJECT_DIR}/reporting/dmkcn_lambda_campaign2"; do
+    if [ -e "${existing_root}" ]; then
+        echo "Refusing to mix a new complete campaign with existing results: ${existing_root}" >&2
+        echo "Archive that root outside the campaign path before resubmitting." >&2
+        exit 2
+    fi
+done
 
 mkdir -p logs
 
