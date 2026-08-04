@@ -20,6 +20,12 @@ IDENTITY_COLUMNS = [
     "n_hvg",
     "n_gfm",
 ]
+OPTIONAL_IDENTITY_COLUMNS = [
+    "lambda_config_id",
+    "lambda1",
+    "lambda2",
+    "lambda3",
+]
 NUMERIC_COLUMNS = [
     "k",
     "seed",
@@ -33,6 +39,9 @@ NUMERIC_COLUMNS = [
     "n_hvg",
     "n_gfm",
     "gfm_gene_count",
+    "lambda1",
+    "lambda2",
+    "lambda3",
     "peak_gpu_allocated_mb",
     "peak_gpu_reserved_mb",
     "peak_rss_mb",
@@ -63,8 +72,16 @@ def load_metrics(input_root: Path) -> pd.DataFrame:
     return raw
 
 
+def identity_columns(frame: pd.DataFrame) -> list[str]:
+    """Return stable identities while remaining compatible with campaign-1 CSVs."""
+
+    return IDENTITY_COLUMNS + [
+        column for column in OPTIONAL_IDENTITY_COLUMNS if column in frame.columns
+    ]
+
+
 def run_stage_totals(raw: pd.DataFrame) -> pd.DataFrame:
-    group_columns = IDENTITY_COLUMNS + ["stage"]
+    group_columns = identity_columns(raw) + ["stage"]
     return (
         raw.groupby(group_columns, dropna=False)
         .agg(
@@ -89,8 +106,13 @@ def summarize_runs(run_stages: pd.DataFrame) -> pd.DataFrame:
         "n_genes",
         "n_hvg",
         "n_gfm",
-        "stage",
     ]
+    group_columns += [
+        column
+        for column in OPTIONAL_IDENTITY_COLUMNS
+        if column in run_stages.columns
+    ]
+    group_columns.append("stage")
     return (
         run_stages.groupby(group_columns, dropna=False)
         .agg(
@@ -120,6 +142,9 @@ def summarize_canonical_seeds(raw: pd.DataFrame) -> pd.DataFrame:
         "n_genes",
         "n_hvg",
         "n_gfm",
+    ]
+    group_columns += [
+        column for column in OPTIONAL_IDENTITY_COLUMNS if column in seeds.columns
     ]
     return (
         seeds.groupby(group_columns, dropna=False)

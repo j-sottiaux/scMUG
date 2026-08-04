@@ -98,6 +98,9 @@ def dmkcn_adapter_block_b(
     primary_projection="spectral_dense",
     primary_d=32,
     graph_neighbors=30,
+    lambda1=None,
+    lambda2=None,
+    lambda3=None,
 ):
     """DMKCN replacement for scMUG block B. Imported lazily to keep AE path usable."""
     from dmkcn.integration import dmkcn_block_b
@@ -115,6 +118,9 @@ def dmkcn_adapter_block_b(
         embedding_dims=embedding_dims,
         primary_projection=primary_projection,
         graph_neighbors=graph_neighbors,
+        lambda1=lambda1,
+        lambda2=lambda2,
+        lambda3=lambda3,
         return_artifacts=True,
     )
 
@@ -252,6 +258,14 @@ def run():
         default=False,
         help="Evaluate K and each saved embedding against labels for diagnostics only.",
     )
+    parser.add_argument(
+        "--dmkcn-lambda-config",
+        default=None,
+        help=(
+            "YAML file containing dataset-specific lambda1/lambda2/lambda3 values. "
+            "When omitted, the historical trainer defaults are preserved."
+        ),
+    )
 
     args = parser.parse_args()
 
@@ -268,6 +282,35 @@ def run():
     red_global = args.red_global
     red_local = args.red_local
     block_b = args.block_b
+    lambda_triplet = None
+    if args.dmkcn_lambda_config is not None:
+        if block_b != "dmkcn":
+            raise ValueError(
+                "--dmkcn-lambda-config is only valid with --block-b dmkcn."
+            )
+        from dmkcn.lambda_config import load_lambda_triplet
+
+        lambda_triplet = load_lambda_triplet(args.dmkcn_lambda_config, dbname)
+    if block_b == "autoencoder":
+        lambda_metadata = {
+            "lambda_config_id": None,
+            "lambda1": None,
+            "lambda2": None,
+            "lambda3": None,
+            "campaign_id": None,
+            "source_file": None,
+        }
+    elif lambda_triplet is None:
+        lambda_metadata = {
+            "lambda_config_id": "legacy_python_defaults",
+            "lambda1": None,
+            "lambda2": None,
+            "lambda3": None,
+            "campaign_id": None,
+            "source_file": None,
+        }
+    else:
+        lambda_metadata = lambda_triplet.as_dict()
     output_tag = args.output_tag or block_b
     output_dir = args.output_dir
     output_stem = args.output_stem
@@ -306,6 +349,8 @@ def run():
     print(f"\nDatabase: {dbname}\tCells: {expr_df.shape[0]}\tGenes: {expr_df.shape[1]}")
     print(f"Block B: {block_b}\tOutput tag: {output_tag}")
     print(f"Alpha/beta grid: {alpha_beta_grid}")
+    if block_b == "dmkcn":
+        print(f"DMKCN lambda configuration: {lambda_metadata}")
     source_gene_count = int(expr_df.shape[1])
     preprocessing_started = synchronized_start()
     expr_df = expr_df.astype(float)
@@ -325,6 +370,10 @@ def run():
         k=cluster_number,
         pipeline=pipeline_name,
         n_gfm=n_gfm,
+        lambda_config_id=lambda_metadata["lambda_config_id"],
+        lambda1=lambda_metadata["lambda1"],
+        lambda2=lambda_metadata["lambda2"],
+        lambda3=lambda_metadata["lambda3"],
     )
     recorder.set_dimensions(
         n_cells=n_sample,
@@ -443,6 +492,15 @@ def run():
                     primary_projection=args.dmkcn_primary_projection,
                     primary_d=args.dmkcn_primary_d,
                     graph_neighbors=args.dmkcn_graph_neighbors,
+                    lambda1=(
+                        None if lambda_triplet is None else lambda_triplet.lambda1
+                    ),
+                    lambda2=(
+                        None if lambda_triplet is None else lambda_triplet.lambda2
+                    ),
+                    lambda3=(
+                        None if lambda_triplet is None else lambda_triplet.lambda3
+                    ),
                 )
                 recorder.finish(
                     block_b_started,
@@ -469,6 +527,7 @@ def run():
                     "gfm_extended_gene_count": int(len(gene_list)),
                     "gfm_correlation_rule": gfm_correlation_rule,
                     "cluster_number": int(cluster_number),
+                    "lambda_configuration": lambda_metadata,
                     "primary_key": artifacts["primary_key"],
                     "timings": artifacts["timings"],
                     **artifacts["diagnostics"],
@@ -756,6 +815,7 @@ def run():
             "alpha_beta_grid": [list(pair) for pair in alpha_beta_grid],
             "canonical_alpha": float(args.canonical_alpha),
             "canonical_beta": float(args.canonical_beta),
+            "lambda_configuration": lambda_metadata,
             "output_tag": output_tag,
             "primary_key": f"{args.dmkcn_primary_projection}_d{args.dmkcn_primary_d}",
             "primary_path": latents_path,

@@ -1,0 +1,17 @@
+schema_version: 1
+campaign_id: dmkcn_lambda_campaign2
+fallback: error
+
+candidates:
+  l1_low:
+    lambda1: 0.01
+    lambda2: 1.0
+    lambda3: 0.05
+  l3_high:
+    lambda1: 0.1
+    lambda2: 1.0
+    lambda3: 0.5
+
+datasets:
+  li: l1_low
+  manno: l3_high

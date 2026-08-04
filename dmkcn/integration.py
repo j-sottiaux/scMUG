@@ -300,9 +300,9 @@ def dmkcn_block_b(
     full_training: bool = True,
     pretrain_epochs: int = 300,
     n_iter: int = 200,
-    lambda1: float = 0.1,  # kernel loss weight   (frozen tuned config)
-    lambda2: float = 1.0,  # clustering loss weight
-    lambda3: float = 0.05,  # ZINB loss weight
+    lambda1: float | None = None,
+    lambda2: float | None = None,
+    lambda3: float | None = None,
     zinb_on_counts: bool = True,
     nonneg: str = "clip",
     allow_pseudo_counts: bool = False,
@@ -336,13 +336,25 @@ def dmkcn_block_b(
     preprocessing_seconds = synchronized_elapsed(preprocessing_started)
 
     training_started = synchronized_start()
+    lambda_values = (lambda1, lambda2, lambda3)
+    if any(value is None for value in lambda_values) and not all(
+        value is None for value in lambda_values
+    ):
+        raise ValueError(
+            "lambda1, lambda2 and lambda3 must either all be provided or all be omitted."
+        )
+    trainer_kwargs = {}
+    if all(value is not None for value in lambda_values):
+        trainer_kwargs.update(
+            lambda1=float(lambda1),
+            lambda2=float(lambda2),
+            lambda3=float(lambda3),
+        )
+
     trainer = ScDMKCTrainer(
         n_clusters=n_clusters,
         encoder_hidden=(500, 500, 2000, 10),
         decoder_hidden=(2000, 500, 500),
-        lambda1=lambda1,
-        lambda2=lambda2,
-        lambda3=lambda3,
         pretrain_epochs=pretrain_epochs,
         n_iter=(n_iter if full_training else 0),
         lr=1e-4,
@@ -352,6 +364,7 @@ def dmkcn_block_b(
         update_interval=3,
         seed=seed,
         verbose=verbose,
+        **trainer_kwargs,
     )
     trainer.fit(data.X_input, X_zinb, data.size_factors)  # no y -> no label leakage
     training_seconds = synchronized_elapsed(training_started)

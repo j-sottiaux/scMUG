@@ -27,6 +27,7 @@ import pandas as pd
 
 
 METRICS = ["NMI", "ARI", "ACC"]
+LAMBDA_COLUMNS = ["lambda_config_id", "lambda1", "lambda2", "lambda3"]
 FULL_LINE_RE = re.compile(
     r"dbname:(?P<dataset>\S+)\s+"
     r"round:(?P<seed>\S+)\s+"
@@ -198,8 +199,11 @@ def summarize(raw_metrics: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
         "beta",
         "c_mode",
         "d_mode",
-        "seed",
     ]
+    key_cols += [
+        column for column in LAMBDA_COLUMNS if column in raw_metrics.columns
+    ]
+    key_cols.append("seed")
     summary_cols = key_cols[:-1]
 
     seed_means = (
@@ -247,6 +251,10 @@ def build_run_details(
                 "canonical_alpha": args.full_alpha,
                 "canonical_beta": args.full_beta,
                 "include_all_alpha_beta": bool(args.include_all_alpha_beta),
+                "lambda_config_id": args.lambda_config_id,
+                "lambda1": args.lambda1,
+                "lambda2": args.lambda2,
+                "lambda3": args.lambda3,
                 "raw_metrics": str(output_paths["raw_metrics"]),
                 "seed_means": str(output_paths["seed_means"]),
                 "condition_summary": str(output_paths["condition_summary"]),
@@ -304,14 +312,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--cluster-number", required=True, type=int)
     parser.add_argument("--experiment-id", required=True)
     parser.add_argument("--run-id", required=True)
-    parser.add_argument("--full-autoencoder", required=True, type=Path)
-    parser.add_argument("--full-dmkcn", required=True, type=Path)
+    parser.add_argument("--full-autoencoder", type=Path, default=None)
+    parser.add_argument("--full-dmkcn", type=Path, default=None)
     parser.add_argument("--ablation", type=Path, default=None)
     parser.add_argument("--full-alpha", required=True, type=float)
     parser.add_argument("--full-beta", required=True, type=float)
     parser.add_argument("--outdir", required=True, type=Path)
     parser.add_argument("--metadata-outdir", required=True, type=Path)
     parser.add_argument("--output-prefix", required=True)
+    parser.add_argument("--lambda-config-id", default=None)
+    parser.add_argument("--lambda1", type=float, default=None)
+    parser.add_argument("--lambda2", type=float, default=None)
+    parser.add_argument("--lambda3", type=float, default=None)
     parser.add_argument(
         "--include-all-alpha-beta",
         action="store_true",
@@ -328,24 +340,44 @@ def main() -> None:
         args.output_prefix,
     )
 
-    frames = [
-        parse_full_txt(
-            args.full_autoencoder,
-            dataset=args.dataset,
-            model="scMUG",
-            canonical_alpha=args.full_alpha,
-            canonical_beta=args.full_beta,
-            include_all_alpha_beta=args.include_all_alpha_beta,
-        ),
-        parse_full_txt(
-            args.full_dmkcn,
-            dataset=args.dataset,
-            model="scMUG-DMKCN",
-            canonical_alpha=args.full_alpha,
-            canonical_beta=args.full_beta,
-            include_all_alpha_beta=args.include_all_alpha_beta,
-        ),
-    ]
+    if args.full_autoencoder is None and args.full_dmkcn is None:
+        raise ValueError("At least one full-pipeline result file must be provided.")
+    lambda_values = (args.lambda1, args.lambda2, args.lambda3)
+    lambda_metadata_supplied = args.lambda_config_id is not None or any(
+        value is not None for value in lambda_values
+    )
+    if lambda_metadata_supplied and (
+        args.lambda_config_id is None
+        or not all(value is not None for value in lambda_values)
+    ):
+        raise ValueError(
+            "--lambda-config-id, --lambda1, --lambda2 and --lambda3 must be "
+            "provided together."
+        )
+
+    frames = []
+    if args.full_autoencoder is not None:
+        frames.append(
+            parse_full_txt(
+                args.full_autoencoder,
+                dataset=args.dataset,
+                model="scMUG",
+                canonical_alpha=args.full_alpha,
+                canonical_beta=args.full_beta,
+                include_all_alpha_beta=args.include_all_alpha_beta,
+            )
+        )
+    if args.full_dmkcn is not None:
+        frames.append(
+            parse_full_txt(
+                args.full_dmkcn,
+                dataset=args.dataset,
+                model="scMUG-DMKCN",
+                canonical_alpha=args.full_alpha,
+                canonical_beta=args.full_beta,
+                include_all_alpha_beta=args.include_all_alpha_beta,
+            )
+        )
     if args.ablation is not None:
         frames.append(read_ablation_tsv(args.ablation, dataset=args.dataset))
 
@@ -353,6 +385,11 @@ def main() -> None:
     raw_metrics.insert(0, "experiment_id", args.experiment_id)
     raw_metrics.insert(1, "run_id", args.run_id)
     raw_metrics.insert(3, "k", int(args.cluster_number))
+    if lambda_metadata_supplied:
+        raw_metrics["lambda_config_id"] = args.lambda_config_id
+        raw_metrics["lambda1"] = float(args.lambda1)
+        raw_metrics["lambda2"] = float(args.lambda2)
+        raw_metrics["lambda3"] = float(args.lambda3)
     seed_means, condition_summary = summarize(raw_metrics)
 
     provenance = {
@@ -367,8 +404,14 @@ def main() -> None:
         "dataset": args.dataset,
         "k": args.cluster_number,
         "inputs": {
-            "full_autoencoder": str(args.full_autoencoder),
-            "full_dmkcn": str(args.full_dmkcn),
+            "full_autoencoder": (
+                None
+                if args.full_autoencoder is None
+                else str(args.full_autoencoder)
+            ),
+            "full_dmkcn": (
+                None if args.full_dmkcn is None else str(args.full_dmkcn)
+            ),
             "ablation": None if args.ablation is None else str(args.ablation),
         },
         "outputs": {
@@ -380,6 +423,10 @@ def main() -> None:
             "full_alpha": args.full_alpha,
             "full_beta": args.full_beta,
             "include_all_alpha_beta": args.include_all_alpha_beta,
+            "lambda_config_id": args.lambda_config_id,
+            "lambda1": args.lambda1,
+            "lambda2": args.lambda2,
+            "lambda3": args.lambda3,
         },
         "n_raw_rows": int(len(raw_metrics)),
         "n_seed_mean_rows": int(len(seed_means)),

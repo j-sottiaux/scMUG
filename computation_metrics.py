@@ -22,6 +22,10 @@ FIELDS = [
     "dataset",
     "k",
     "pipeline",
+    "lambda_config_id",
+    "lambda1",
+    "lambda2",
+    "lambda3",
     "seed",
     "repeat",
     "gfm_index",
@@ -91,6 +95,10 @@ class ComputationRecorder:
         k: int,
         pipeline: str,
         n_gfm: int,
+        lambda_config_id: str | None = None,
+        lambda1: float | None = None,
+        lambda2: float | None = None,
+        lambda3: float | None = None,
     ) -> None:
         self.output_path = Path(output_path) if output_path else None
         self.identity = {
@@ -100,6 +108,10 @@ class ComputationRecorder:
             "k": int(k),
             "pipeline": pipeline,
             "n_gfm": int(n_gfm),
+            "lambda_config_id": lambda_config_id,
+            "lambda1": lambda1,
+            "lambda2": lambda2,
+            "lambda3": lambda3,
         }
         self.dimensions: dict[str, int | None] = {
             "n_cells": None,

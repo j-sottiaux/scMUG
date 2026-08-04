@@ -186,6 +186,8 @@ logs/
 tests/
 docs/
 .claude/
+reporting/
+publication/
 
 # macOS
 .DS_Store
