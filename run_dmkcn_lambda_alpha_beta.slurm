@@ -210,8 +210,9 @@ PY
 }
 trap on_exit EXIT
 
-test -x /usr/bin/time
-/usr/bin/time -v -o "${RESOURCE_USAGE}" "${GRID_COMMAND[@]}"
+python3 measure_command_resources.py \
+    --output "${RESOURCE_USAGE}" \
+    -- "${GRID_COMMAND[@]}"
 test -s "${GRID_TSV}"
 test -s "${GRID_SUMMARY_TSV}"
 test -s "${RESOURCE_USAGE}"

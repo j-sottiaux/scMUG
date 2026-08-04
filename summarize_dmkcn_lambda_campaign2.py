@@ -802,14 +802,14 @@ def parse_elapsed_value(value: str) -> float:
     try:
         numbers = [float(field) for field in fields]
     except ValueError as exc:
-        raise ValueError(f"Invalid /usr/bin/time elapsed value: {value!r}") from exc
+        raise ValueError(f"Invalid resource elapsed value: {value!r}") from exc
     if len(numbers) == 2:
         minutes, seconds = numbers
         return minutes * 60 + seconds
     if len(numbers) == 3:
         hours, minutes, seconds = numbers
         return hours * 3600 + minutes * 60 + seconds
-    raise ValueError(f"Invalid /usr/bin/time elapsed value: {value!r}")
+    raise ValueError(f"Invalid resource elapsed value: {value!r}")
 
 
 def parse_resource_usage(path: Path) -> dict[str, float]:
@@ -830,7 +830,7 @@ def parse_resource_usage(path: Path) -> dict[str, float]:
                     line.split("):", 1)[1]
                 )
             elif line.startswith("Maximum resident set size (kbytes):"):
-                fields["max_rss_mb_time_v"] = (
+                fields["max_rss_mb_task"] = (
                     float(line.rsplit(":", 1)[1]) / 1024.0
                 )
     required = {
@@ -838,11 +838,11 @@ def parse_resource_usage(path: Path) -> dict[str, float]:
         "system_cpu_seconds",
         "cpu_percent",
         "task_wall_seconds",
-        "max_rss_mb_time_v",
+        "max_rss_mb_task",
     }
     missing = sorted(required.difference(fields))
     if missing:
-        raise ValueError(f"{path}: missing /usr/bin/time fields {missing}.")
+        raise ValueError(f"{path}: missing resource-measurement fields {missing}.")
     fields["total_cpu_seconds"] = (
         fields["user_cpu_seconds"] + fields["system_cpu_seconds"]
     )
@@ -938,7 +938,7 @@ def summarize_computation(args: argparse.Namespace) -> None:
             max_task_wall_seconds=("task_wall_seconds", "max"),
             total_cpu_seconds=("total_cpu_seconds", "sum"),
             max_task_average_cpu_percent=("cpu_percent", "max"),
-            max_rss_mb=("max_rss_mb_time_v", "max"),
+            max_rss_mb=("max_rss_mb_task", "max"),
             max_gpu_allocated_mb=("peak_gpu_allocated_mb", "max"),
             max_gpu_reserved_mb=("peak_gpu_reserved_mb", "max"),
         )
@@ -960,7 +960,10 @@ def summarize_computation(args: argparse.Namespace) -> None:
             "alpha_input_root": str(args.alpha_input_root),
             "lambda_config": str(args.lambda_config),
             "expected_task_counts": expected_counts,
-            "resource_source": "/usr/bin/time -v plus scMUG computation recorder",
+            "resource_source": (
+                "Python resource.getrusage(RUSAGE_CHILDREN) wrapper plus "
+                "scMUG computation recorder"
+            ),
         },
         args.outdir / "computation_manifest.json",
     )

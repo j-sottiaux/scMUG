@@ -269,8 +269,9 @@ export LD_LIBRARY_PATH="${GCORR_DIR}:${LD_LIBRARY_PATH:-}"
 export PYTHONPATH="${PROJECT_DIR}:${PYTHONPATH:-}"
 ldd "${GCORR_DIR}/libgcorr.so"
 
-test -x /usr/bin/time
-/usr/bin/time -v -o "${RESOURCE_USAGE}" "${SCMUG_COMMAND[@]}"
+python3 measure_command_resources.py \
+    --output "${RESOURCE_USAGE}" \
+    -- "${SCMUG_COMMAND[@]}"
 
 python3 xp_metrics.py \
     --dataset "${DATASET}" \
