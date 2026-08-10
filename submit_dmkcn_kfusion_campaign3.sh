@@ -1,5 +1,6 @@
 #!/bin/bash
 # Submit the campaign-3 GPU training, CPU analysis and consolidation chain.
+# This wrapper performs no Python/module work itself.
 #
 # Dry-run:
 #   SCMUG_CPU_PARTITION=24c1 DRY_RUN=true \
@@ -33,16 +34,12 @@ if [[ ! "${CAMPAIGN_INSTANCE_ID}" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*$ ]]; then
 fi
 
 cd "${PROJECT_DIR}"
-if command -v module >/dev/null 2>&1; then
-    module purge
-    module load "${SCMUG_PYTHON_MODULE}"
-fi
-python3 campaign3_tasks.py --campaign-config "${CAMPAIGN_CONFIG}" --list
 echo
 echo "Campaign instance: ${CAMPAIGN_INSTANCE_ID}"
 echo "Output root: ${OUTPUT_ROOT}"
 echo "Reporting root: ${REPORTING_ROOT}"
 echo "CPU partition: ${SCMUG_CPU_PARTITION}"
+echo "Task mapping: array 0-7, validated inside each allocated GPU task"
 
 SBATCH_EXPORT="ALL,CAMPAIGN_INSTANCE_ID=${CAMPAIGN_INSTANCE_ID},SCMUG_CPU_PARTITION=${SCMUG_CPU_PARTITION},SCMUG_PYTHON_MODULE=${SCMUG_PYTHON_MODULE},CAMPAIGN_CONFIG=${CAMPAIGN_CONFIG}"
 
