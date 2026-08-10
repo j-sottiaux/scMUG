@@ -57,10 +57,12 @@ def embedding_key(projection: str, d: int) -> str:
 
 
 def affinity_from_K(K: np.ndarray, nonneg: str = "clip") -> np.ndarray:
-    """Symmetric, non-negative affinity from the (possibly asymmetric, signed) K.
+    """Symmetric, non-negative affinity from a possibly asymmetric K.
 
-    After the per-kernel row-L2 normalisation, K is neither symmetric nor
-    non-negative, whereas a spectral-embedding affinity must be both.
+    After the per-kernel row-L2 normalisation, K is generally not symmetric.
+    The current ReLU encoder and positive kernel family make it non-negative,
+    but the explicit policy is retained as a defensive contract for alternate
+    kernels or future configurations.
       - symmetrise: (K + K^T) / 2
       - non-negativity:
           'clip'  -> max(S, 0): anti-similarities (negative cosine/sigmoid) map to
@@ -311,6 +313,7 @@ def dmkcn_block_b(
     primary_projection: str = "spectral_dense",
     graph_neighbors: int = 30,
     return_artifacts: bool = False,
+    include_kernel_representation: bool = False,
     verbose: bool = False,
 ) -> np.ndarray | dict:
     """scDMKC block-B replacement for one GFM. Returns a (n_cells, d) embedding.
@@ -417,6 +420,16 @@ def dmkcn_block_b(
             "training": trainer.fit_diagnostics_,
         },
     }
+    if include_kernel_representation:
+        kernel_representation = np.asarray(K, dtype=np.float32)
+        if kernel_representation.shape != (data.X_input.shape[0],) * 2:
+            raise ValueError(
+                "DMKCN kernel representation has an unexpected shape: "
+                f"{kernel_representation.shape}."
+            )
+        if not np.isfinite(kernel_representation).all():
+            raise ValueError("DMKCN kernel representation contains NaN or Inf.")
+        artifacts["kernel_representation"] = kernel_representation.copy()
     if return_artifacts:
         return artifacts
     return embeddings[primary_key]

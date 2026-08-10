@@ -1,8 +1,11 @@
 import argparse
+import hashlib
 import json
 import math
 import os
+import tempfile
 import numpy as np
+import pandas as pd
 from model import *
 from utils import *
 from computation_metrics import (
@@ -26,6 +29,78 @@ ALPHA_BETA_GRID = [
     (1, 0.001),
     (1, 0),
 ]
+
+
+def sha256_lines(values):
+    """Stable hash for an ordered collection of identifiers."""
+    digest = hashlib.sha256()
+    for value in values:
+        digest.update(str(value).encode("utf-8"))
+        digest.update(b"\n")
+    return digest.hexdigest()
+
+
+def atomic_npz_dump(path, **arrays):
+    """Write an uncompressed NPZ atomically without pickle payloads."""
+    target = os.path.abspath(os.fspath(path))
+    directory = os.path.dirname(target)
+    os.makedirs(directory, exist_ok=True)
+    descriptor, temporary = tempfile.mkstemp(
+        prefix=f".{os.path.basename(target)}.", suffix=".tmp", dir=directory
+    )
+    os.close(descriptor)
+    try:
+        with open(temporary, "wb") as handle:
+            np.savez(handle, **arrays)
+        os.replace(temporary, target)
+    except Exception:
+        try:
+            os.unlink(temporary)
+        except FileNotFoundError:
+            pass
+        raise
+
+
+def atomic_json_dump(payload, path):
+    """Write a JSON artifact atomically within its destination directory."""
+    target = os.path.abspath(os.fspath(path))
+    directory = os.path.dirname(target)
+    os.makedirs(directory, exist_ok=True)
+    descriptor, temporary = tempfile.mkstemp(
+        prefix=f".{os.path.basename(target)}.", suffix=".tmp", dir=directory
+    )
+    os.close(descriptor)
+    try:
+        with open(temporary, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle, sort_keys=True, indent=2)
+            handle.write("\n")
+        os.replace(temporary, target)
+    except Exception:
+        try:
+            os.unlink(temporary)
+        except FileNotFoundError:
+            pass
+        raise
+
+
+def atomic_csv_dump(frame, path):
+    """Write a CSV artifact atomically within its destination directory."""
+    target = os.path.abspath(os.fspath(path))
+    directory = os.path.dirname(target)
+    os.makedirs(directory, exist_ok=True)
+    descriptor, temporary = tempfile.mkstemp(
+        prefix=f".{os.path.basename(target)}.", suffix=".tmp", dir=directory
+    )
+    os.close(descriptor)
+    try:
+        frame.to_csv(temporary, index=False)
+        os.replace(temporary, target)
+    except Exception:
+        try:
+            os.unlink(temporary)
+        except FileNotFoundError:
+            pass
+        raise
 
 
 def parse_alpha_beta_grid(value):
@@ -101,6 +176,7 @@ def dmkcn_adapter_block_b(
     lambda1=None,
     lambda2=None,
     lambda3=None,
+    include_kernel_representation=False,
 ):
     """DMKCN replacement for scMUG block B. Imported lazily to keep AE path usable."""
     from dmkcn.integration import dmkcn_block_b
@@ -122,6 +198,7 @@ def dmkcn_adapter_block_b(
         lambda2=lambda2,
         lambda3=lambda3,
         return_artifacts=True,
+        include_kernel_representation=include_kernel_representation,
     )
 
 
@@ -266,6 +343,23 @@ def run():
             "When omitted, the historical trainer defaults are preserved."
         ),
     )
+    parser.add_argument(
+        "--dmkcn-lambda-config-id",
+        default=None,
+        help=(
+            "Optional candidate ID from --dmkcn-lambda-config. This reuses a "
+            "validated candidate without changing the source campaign's dataset map."
+        ),
+    )
+    parser.add_argument(
+        "--dmkcn-export-kernels",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help=(
+            "Export one float32 (n_gfm, n_cells, n_cells) NPZ per seed, plus "
+            "cell and GFM membership metadata. Disabled by default."
+        ),
+    )
 
     args = parser.parse_args()
 
@@ -283,6 +377,14 @@ def run():
     red_local = args.red_local
     block_b = args.block_b
     lambda_triplet = None
+    if args.dmkcn_lambda_config_id is not None and args.dmkcn_lambda_config is None:
+        raise ValueError(
+            "--dmkcn-lambda-config-id requires --dmkcn-lambda-config."
+        )
+    if args.dmkcn_export_kernels and block_b != "dmkcn":
+        raise ValueError("--dmkcn-export-kernels is only valid with --block-b dmkcn.")
+    if args.dmkcn_export_kernels and args.output_stem is None:
+        raise ValueError("--dmkcn-export-kernels requires a unique --output-stem.")
     if args.dmkcn_lambda_config is not None:
         if block_b != "dmkcn":
             raise ValueError(
@@ -290,7 +392,11 @@ def run():
             )
         from dmkcn.lambda_config import load_lambda_triplet
 
-        lambda_triplet = load_lambda_triplet(args.dmkcn_lambda_config, dbname)
+        lambda_triplet = load_lambda_triplet(
+            args.dmkcn_lambda_config,
+            dbname,
+            candidate_id=args.dmkcn_lambda_config_id,
+        )
     if block_b == "autoencoder":
         lambda_metadata = {
             "lambda_config_id": None,
@@ -351,6 +457,15 @@ def run():
     print(f"Alpha/beta grid: {alpha_beta_grid}")
     if block_b == "dmkcn":
         print(f"DMKCN lambda configuration: {lambda_metadata}")
+    source_cell_ids = [str(value) for value in expr_df.index]
+    if len(set(source_cell_ids)) != len(source_cell_ids):
+        raise ValueError("Source expression matrix contains duplicated cell identifiers.")
+    if len(source_cell_ids) != len(cell_type):
+        raise ValueError(
+            "Source cell identifier and label lengths differ: "
+            f"{len(source_cell_ids)} != {len(cell_type)}."
+        )
+    cell_ids_sha256 = sha256_lines(source_cell_ids)
     source_gene_count = int(expr_df.shape[1])
     preprocessing_started = synchronized_start()
     expr_df = expr_df.astype(float)
@@ -409,6 +524,27 @@ def run():
     predictions = []
     latents = []
     latent_variants = {}
+    kernel_paths = {}
+    gfm_membership_reference = None
+
+    if args.dmkcn_export_kernels:
+        export_prefix = f"{output_stem}_{output_tag}"
+        kernels_dir = os.path.join(output_dir, f"{export_prefix}_kernels")
+        cell_metadata_path = os.path.join(
+            output_dir, f"{export_prefix}_cell_metadata.csv"
+        )
+        gfm_membership_path = os.path.join(
+            output_dir, f"{export_prefix}_gfm_membership.json"
+        )
+        for target in (kernels_dir, cell_metadata_path, gfm_membership_path):
+            if os.path.exists(target):
+                raise FileExistsError(
+                    f"Refusing to overwrite existing kernel export target: {target}"
+                )
+    else:
+        kernels_dir = None
+        cell_metadata_path = None
+        gfm_membership_path = None
 
     diagnostics_name = (
         f"{output_stem}_{output_tag}_diagnostics.jsonl"
@@ -433,6 +569,8 @@ def run():
         seed_started = recorder.start()
         latent_val = None
         seed_variant_latents = {}
+        seed_kernel_representations = []
+        seed_gfm_membership = []
         for i, t in enumerate(cutoffs):
             print(f"GFM: {i + 1}")
             gfm_started = recorder.start()
@@ -451,6 +589,21 @@ def run():
                 t,
                 d=3,
                 correlation_rule=gfm_correlation_rule,
+            )
+            seed_gfm_membership.append(
+                {
+                    "gfm_index": int(i + 1),
+                    "seed_genes": sorted(str(value) for value in gfm),
+                    "extended_genes": sorted(str(value) for value in gene_list),
+                    "cutoff": float(t),
+                    "correlation_rule": gfm_correlation_rule,
+                }
+            )
+            seed_gfm_membership[-1]["seed_genes_sha256"] = sha256_lines(
+                seed_gfm_membership[-1]["seed_genes"]
+            )
+            seed_gfm_membership[-1]["extended_genes_sha256"] = sha256_lines(
+                seed_gfm_membership[-1]["extended_genes"]
             )
             recorder.finish(
                 gfm_started,
@@ -501,6 +654,7 @@ def run():
                     lambda3=(
                         None if lambda_triplet is None else lambda_triplet.lambda3
                     ),
+                    include_kernel_representation=args.dmkcn_export_kernels,
                 )
                 recorder.finish(
                     block_b_started,
@@ -551,6 +705,11 @@ def run():
                     diagnostic_record["exit_metrics"] = exit_metrics
                 append_jsonl(diagnostics_path, diagnostic_record)
 
+                if args.dmkcn_export_kernels:
+                    seed_kernel_representations.append(
+                        artifacts.pop("kernel_representation")
+                    )
+
                 for variant_key, variant_embedding in artifacts[
                     "embeddings"
                 ].items():
@@ -572,6 +731,48 @@ def run():
                 latent_val = latent
             else:
                 latent_val = np.concatenate((latent_val, latent), axis=1)
+
+        if args.dmkcn_export_kernels:
+            if len(seed_kernel_representations) != n_gfm:
+                raise ValueError(
+                    f"Seed {seed}: expected {n_gfm} kernel matrices, got "
+                    f"{len(seed_kernel_representations)}."
+                )
+            if gfm_membership_reference is None:
+                gfm_membership_reference = seed_gfm_membership
+            elif seed_gfm_membership != gfm_membership_reference:
+                raise ValueError(
+                    "Extended GFM membership changed between seeds; refusing to "
+                    "write an ambiguous campaign artifact."
+                )
+            kernel_stack = np.stack(seed_kernel_representations).astype(
+                np.float32, copy=False
+            )
+            expected_shape = (n_gfm, n_sample, n_sample)
+            if kernel_stack.shape != expected_shape:
+                raise ValueError(
+                    f"Seed {seed}: expected kernel shape {expected_shape}, got "
+                    f"{kernel_stack.shape}."
+                )
+            kernel_path = os.path.join(
+                kernels_dir, f"seed{int(seed)}_kernel_representations.npz"
+            )
+            kernel_export_started = recorder.start()
+            atomic_npz_dump(
+                kernel_path,
+                kernels=kernel_stack,
+                gfm_indices=np.arange(1, n_gfm + 1, dtype=np.int16),
+                seed=np.asarray(int(seed), dtype=np.int64),
+                cell_ids_sha256=np.asarray(cell_ids_sha256),
+            )
+            recorder.finish(
+                kernel_export_started,
+                "kernel_export_io",
+                seed=seed,
+            )
+            kernel_paths[str(int(seed))] = kernel_path
+            del kernel_stack
+            seed_kernel_representations.clear()
 
         latents.append(latent_val)
         if block_b == "dmkcn":
@@ -795,6 +996,35 @@ def run():
     atomic_joblib_dump(latents, latents_path)
 
     if block_b == "dmkcn":
+        if args.dmkcn_export_kernels:
+            if sorted(kernel_paths) != sorted(str(int(seed)) for seed in seeds):
+                raise ValueError(
+                    "Kernel export is incomplete: expected one artifact for every seed."
+                )
+            if gfm_membership_reference is None:
+                raise ValueError("GFM membership metadata was not collected.")
+            atomic_csv_dump(
+                pd.DataFrame(
+                    {
+                        "cell_position": np.arange(n_sample, dtype=int),
+                        "cell_id": source_cell_ids,
+                        "cell_type": [str(value) for value in cell_type],
+                        "encoded_label": np.asarray(y, dtype=int),
+                    }
+                ),
+                cell_metadata_path,
+            )
+            atomic_json_dump(
+                {
+                    "schema_version": 1,
+                    "dataset": dbname,
+                    "n_cells": int(n_sample),
+                    "n_gfm": int(n_gfm),
+                    "cell_ids_sha256": cell_ids_sha256,
+                    "gfm_membership": gfm_membership_reference,
+                },
+                gfm_membership_path,
+            )
         variant_paths = {}
         for variant_key, values in sorted(latent_variants.items()):
             variant_path = os.path.join(
@@ -822,18 +1052,27 @@ def run():
             "legacy_primary_path": latents_path,
             "variant_paths": variant_paths,
             "diagnostics_path": diagnostics_path,
+            "kernel_export": {
+                "enabled": bool(args.dmkcn_export_kernels),
+                "paths_by_seed": kernel_paths,
+                "cell_metadata_path": cell_metadata_path,
+                "gfm_membership_path": gfm_membership_path,
+                "cell_ids_sha256": (
+                    cell_ids_sha256 if args.dmkcn_export_kernels else None
+                ),
+                "format": (
+                    "npz_float32_gfm_cells_cells"
+                    if args.dmkcn_export_kernels
+                    else None
+                ),
+            },
         }
         manifest_name = (
             f"{output_stem}_{output_tag}_manifest.json"
             if output_stem
             else f"latents_{output_tag}_manifest.json"
         )
-        with open(
-            os.path.join(output_dir, manifest_name),
-            "w",
-            encoding="utf-8",
-        ) as handle:
-            json.dump(manifest, handle, sort_keys=True, indent=2)
+        atomic_json_dump(manifest, os.path.join(output_dir, manifest_name))
 
 
 if __name__ == "__main__":

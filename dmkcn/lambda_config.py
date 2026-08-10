@@ -46,6 +46,32 @@ class LambdaConfiguration:
     fallback: str
     source_file: str
 
+    def resolve_candidate(self, dataset: str, candidate_id: str) -> LambdaTriplet:
+        """Resolve an explicitly selected, validated candidate for one dataset.
+
+        This is used by experiments that reuse the frozen candidate registry
+        without changing the dataset mapping of the campaign that created it.
+        """
+        normalized = str(dataset).strip().casefold()
+        selected = str(candidate_id).strip()
+        if not normalized:
+            raise ValueError("dataset must be a non-empty string.")
+        if selected not in self.candidates:
+            raise KeyError(
+                f"Unknown lambda candidate {candidate_id!r} in {self.source_file}; "
+                f"available candidates are {sorted(self.candidates)}."
+            )
+        lambda1, lambda2, lambda3 = self.candidates[selected]
+        return LambdaTriplet(
+            dataset=normalized,
+            lambda_config_id=selected,
+            lambda1=lambda1,
+            lambda2=lambda2,
+            lambda3=lambda3,
+            campaign_id=self.campaign_id,
+            source_file=self.source_file,
+        )
+
     def resolve(self, dataset: str) -> LambdaTriplet:
         normalized = str(dataset).strip().casefold()
         candidate_id = self.datasets.get(normalized)
@@ -56,16 +82,7 @@ class LambdaConfiguration:
                     "fallback is explicitly set to 'error'."
                 )
             candidate_id = self.fallback
-        lambda1, lambda2, lambda3 = self.candidates[candidate_id]
-        return LambdaTriplet(
-            dataset=normalized,
-            lambda_config_id=candidate_id,
-            lambda1=lambda1,
-            lambda2=lambda2,
-            lambda3=lambda3,
-            campaign_id=self.campaign_id,
-            source_file=self.source_file,
-        )
+        return self.resolve_candidate(normalized, candidate_id)
 
 
 def _validate_lambda_value(candidate_id: str, key: str, value: Any) -> float:
@@ -169,7 +186,14 @@ def load_lambda_configuration(path: str | Path) -> LambdaConfiguration:
     )
 
 
-def load_lambda_triplet(path: str | Path, dataset: str) -> LambdaTriplet:
-    """Load and resolve one dataset-specific lambda triplet."""
+def load_lambda_triplet(
+    path: str | Path,
+    dataset: str,
+    candidate_id: str | None = None,
+) -> LambdaTriplet:
+    """Load and resolve one dataset triplet, optionally by candidate ID."""
 
-    return load_lambda_configuration(path).resolve(dataset)
+    configuration = load_lambda_configuration(path)
+    if candidate_id is None:
+        return configuration.resolve(dataset)
+    return configuration.resolve_candidate(dataset, candidate_id)

@@ -1,0 +1,89 @@
+schema_version: 1
+campaign_id: dmkcn_kfusion_campaign3
+data_config: configs/data.yaml
+lambda_config: configs/dmkcn_lambdas_triplets
+
+datasets:
+  darmanis:
+    lambda_config_id: canonical
+    regimes:
+      oracle:
+        role: primary
+        k_train: 9
+        k_cluster: 9
+        alpha: 0.01
+        beta: 1.0
+      historical:
+        role: sensitivity
+        k_train: 15
+        k_cluster: 15
+        alpha: 0.01
+        beta: 1.0
+  li:
+    lambda_config_id: l1_low
+    regimes:
+      oracle:
+        role: primary
+        k_train: 9
+        k_cluster: 9
+        alpha: 1.0
+        beta: 1.0
+      historical:
+        role: sensitivity
+        k_train: 10
+        k_cluster: 10
+        alpha: 0.1
+        beta: 1.0
+  manno:
+    lambda_config_id: l3_high
+    regimes:
+      oracle:
+        role: primary
+        k_train: 7
+        k_cluster: 7
+        alpha: 1.0
+        beta: 1.0
+      historical:
+        role: sensitivity
+        k_train: 8
+        k_cluster: 8
+        alpha: 0.01
+        beta: 1.0
+  muraro:
+    lambda_config_id: canonical
+    regimes:
+      oracle:
+        role: primary
+        k_train: 9
+        k_cluster: 9
+        alpha: 0.001
+        beta: 1.0
+      historical:
+        role: sensitivity
+        k_train: 8
+        k_cluster: 8
+        alpha: 0.001
+        beta: 1.0
+
+protocol:
+  seeds: [1111, 2222, 3333, 4444, 5555, 6666, 7777, 8888, 9999, 10000]
+  repeats: 3
+  kmeans_times: 20
+  n_neighbour: 3
+  red_global: umap
+  red_local: umap
+  dmkcn_projection: spectral_dense
+  dmkcn_projection_dimension: 32
+  affinity_nonnegativity: clip
+  preserve_diagonal: true
+  cross_gfm_normalization: off_diagonal_frobenius
+  conditions:
+    - cd_all_gfm
+    - direct_mean_frobenius
+    - cd_single_gfm
+    - direct_single_gfm
+    - direct_mean_raw
+  primary_condition: direct_mean_frobenius
+  reference_condition: cd_all_gfm
+  primary_metric: NMI
+  primary_regime: oracle
