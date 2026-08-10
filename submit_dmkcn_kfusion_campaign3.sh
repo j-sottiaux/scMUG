@@ -33,6 +33,10 @@ if [[ ! "${CAMPAIGN_INSTANCE_ID}" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*$ ]]; then
 fi
 
 cd "${PROJECT_DIR}"
+if command -v module >/dev/null 2>&1; then
+    module purge
+    module load "${SCMUG_PYTHON_MODULE}"
+fi
 python3 campaign3_tasks.py --campaign-config "${CAMPAIGN_CONFIG}" --list
 echo
 echo "Campaign instance: ${CAMPAIGN_INSTANCE_ID}"
